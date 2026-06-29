@@ -1,26 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { Ball, Shot, ShotInput } from "@/lib/types";
-
-const initial: ShotInput = {
-  ball_id: null,
-  game_number: 1,
-  frame_number: 1,
-  feet_board: 25,
-  laydown_board: 22,
-  target_board: 12,
-  breakpoint_board: 8,
-  pocket_board: 17.5,
-  speed_mph: 16.5,
-  rev_rate: null,
-  axis_rotation: null,
-  axis_tilt: null,
-  pinfall: 10,
-  leave_code: null,
-  delivery_quality: "good",
-  notes: null,
-};
+import { useEffect, useState } from "react";
+import type { Ball, ShotInput } from "@/lib/types";
+import { PinLeaveSelector, parseLeave, stringifyLeave } from "./PinLeaveSelector";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -45,10 +27,10 @@ function NumberInput({
   allowEmpty?: boolean;
   onChange: (value: number | null) => void;
 }) {
-  const [text, setText] = useState(value ?? "");
+  const [text, setText] = useState<string>(value === null ? "" : String(value));
 
   useEffect(() => {
-    setText(value ?? "");
+    setText(value === null ? "" : String(value));
   }, [value]);
 
   function commit(raw: string, finalize: boolean) {
@@ -67,10 +49,7 @@ function NumberInput({
 
     const parsed = Number(raw);
     if (!Number.isFinite(parsed)) {
-      if (finalize) {
-        const fallback = typeof value === "number" ? value : min;
-        setText(String(clamp(fallback, min, max)));
-      }
+      if (finalize) setText(value === null ? "" : String(value));
       return;
     }
 
@@ -90,9 +69,8 @@ function NumberInput({
         max={max}
         step={step}
         onChange={(e) => {
-          const next = e.target.value;
-          setText(next);
-          commit(next, false);
+          setText(e.target.value);
+          commit(e.target.value, false);
         }}
         onBlur={(e) => commit(e.target.value, true)}
       />
@@ -103,60 +81,18 @@ function NumberInput({
 
 export function ShotForm({
   balls,
-  lastShot,
-  handedness,
+  form,
   busy,
+  onChange,
   onSubmit,
 }: {
   balls: Ball[];
-  lastShot: Shot | null;
-  handedness: "right" | "left";
+  form: ShotInput;
   busy: boolean;
+  onChange: (patch: Partial<ShotInput>) => void;
   onSubmit: (payload: ShotInput) => Promise<void>;
 }) {
-  const [form, setForm] = useState<ShotInput>(initial);
   const [advanced, setAdvanced] = useState(false);
-  const lastAutoFillId = useRef<number | null>(null);
-
-  useEffect(() => {
-    const primary = balls.find((ball) => ball.is_primary) || balls[0];
-    if (!primary) return;
-    setForm((current) => (current.ball_id ? current : { ...current, ball_id: primary.id }));
-  }, [balls]);
-
-  useEffect(() => {
-    setForm((current) => ({
-      ...current,
-      pocket_board: handedness === "right" ? 17.5 : 22.5,
-    }));
-  }, [handedness]);
-
-  useEffect(() => {
-    if (!lastShot) return;
-    if (lastAutoFillId.current === lastShot.id) return;
-    lastAutoFillId.current = lastShot.id;
-
-    setForm((current) => ({
-      ...current,
-      ball_id: lastShot.ball_id,
-      game_number: lastShot.game_number,
-      frame_number: Math.min(12, (lastShot.frame_number || 0) + 1),
-      feet_board: clamp(lastShot.feet_board + (lastShot.recommendation?.feet_delta || 0), 1, 39),
-      laydown_board: clamp(lastShot.laydown_board + (lastShot.recommendation?.feet_delta || 0), 1, 39),
-      target_board: clamp(lastShot.target_board + (lastShot.recommendation?.target_delta || 0), 1, 39),
-      breakpoint_board: lastShot.breakpoint_board,
-      pocket_board: handedness === "right" ? 17.5 : 22.5,
-      speed_mph: lastShot.speed_mph,
-      pinfall: 10,
-      delivery_quality: "good",
-      leave_code: null,
-      notes: null,
-    }));
-  }, [lastShot, handedness]);
-
-  function patch<K extends keyof ShotInput>(key: K, value: ShotInput[K]) {
-    setForm((current) => ({ ...current, [key]: value }));
-  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -167,6 +103,8 @@ export function ShotForm({
       pinfall: Math.round(form.pinfall),
     });
   }
+
+  const standingPins = parseLeave(form.leave_code, form.pinfall);
 
   return (
     <form className="shot-form" onSubmit={submit}>
@@ -181,13 +119,13 @@ export function ShotForm({
       </div>
 
       <div className="shot-form-tip">
-        Tip: every board field is fully editable now, including decimals like 17.5 or 12.5.
+        Drag the markers directly on the lane, or fine-tune exact board numbers here. The pin diagram below will update pinfall and leave automatically.
       </div>
 
       <div className="form-grid compact">
         <label className="field span-2">
           <span>Ball</span>
-          <select value={form.ball_id ?? ""} onChange={(e) => patch("ball_id", e.target.value ? Number(e.target.value) : null)}>
+          <select value={form.ball_id ?? ""} onChange={(e) => onChange({ ball_id: e.target.value ? Number(e.target.value) : null })}>
             <option value="">Unspecified</option>
             {balls.map((ball) => (
               <option key={ball.id} value={ball.id}>
@@ -196,18 +134,18 @@ export function ShotForm({
             ))}
           </select>
         </label>
-        <NumberInput label="Game" value={form.game_number} min={1} max={20} onChange={(v) => patch("game_number", v || 1)} />
-        <NumberInput label="Frame" value={form.frame_number} min={1} max={12} onChange={(v) => patch("frame_number", v)} />
-        <NumberInput label="Feet board" value={form.feet_board} min={1} max={39} step={0.5} hint="Board where your feet begin." onChange={(v) => patch("feet_board", v || 1)} />
-        <NumberInput label="Laydown" value={form.laydown_board} min={1} max={39} step={0.5} hint="Where the ball first touches the lane." onChange={(v) => patch("laydown_board", v || 1)} />
-        <NumberInput label="Arrow target" value={form.target_board} min={1} max={39} step={0.5} hint="Board crossed at the arrows (15 ft)." onChange={(v) => patch("target_board", v || 1)} />
-        <NumberInput label="Breakpoint" value={form.breakpoint_board} min={1} max={39} step={0.5} hint="Approximate hook spot downlane." onChange={(v) => patch("breakpoint_board", v || 1)} />
-        <NumberInput label="Pocket board" value={form.pocket_board} min={1} max={39} step={0.25} hint="Ideal entry line at the pin deck." onChange={(v) => patch("pocket_board", v || 1)} />
-        <NumberInput label="Ball speed" value={form.speed_mph} min={5} max={30} step={0.1} hint="Miles per hour at release or monitor." allowEmpty onChange={(v) => patch("speed_mph", v)} />
-        <NumberInput label="Pinfall" value={form.pinfall} min={0} max={10} hint="How many pins fell on this shot." onChange={(v) => patch("pinfall", v ?? 0)} />
+        <NumberInput label="Game" value={form.game_number} min={1} max={20} onChange={(v) => onChange({ game_number: v || 1 })} />
+        <NumberInput label="Frame" value={form.frame_number} min={1} max={12} onChange={(v) => onChange({ frame_number: v })} />
+        <NumberInput label="Feet board" value={form.feet_board} min={1} max={39} step={0.5} hint="Starting position on the approach." onChange={(v) => onChange({ feet_board: v || 1 })} />
+        <NumberInput label="Laydown" value={form.laydown_board} min={1} max={39} step={0.5} hint="Where the ball first contacts the lane." onChange={(v) => onChange({ laydown_board: v || 1 })} />
+        <NumberInput label="Arrow target" value={form.target_board} min={1} max={39} step={0.5} hint="Board crossed at 15 feet." onChange={(v) => onChange({ target_board: v || 1 })} />
+        <NumberInput label="Breakpoint" value={form.breakpoint_board} min={1} max={39} step={0.5} hint="Estimated hook point downlane." onChange={(v) => onChange({ breakpoint_board: v || 1 })} />
+        <NumberInput label="Pocket board" value={form.pocket_board} min={1} max={39} step={0.25} hint="Desired entry line through the pin deck." onChange={(v) => onChange({ pocket_board: v || 1 })} />
+        <NumberInput label="Ball speed" value={form.speed_mph} min={5} max={30} step={0.1} hint="MPH at release or lane monitor." allowEmpty onChange={(v) => onChange({ speed_mph: v })} />
+        <NumberInput label="Pinfall" value={form.pinfall} min={0} max={10} hint="Auto-updates from the pin leave selector." onChange={(v) => onChange({ pinfall: v ?? 0, leave_code: v === 10 ? null : form.leave_code })} />
         <label className="field">
           <span>Delivery</span>
-          <select value={form.delivery_quality} onChange={(e) => patch("delivery_quality", e.target.value)}>
+          <select value={form.delivery_quality} onChange={(e) => onChange({ delivery_quality: e.target.value })}>
             <option value="good">Good delivery</option>
             <option value="unknown">Unknown</option>
             <option value="missed_left">Missed target left</option>
@@ -218,18 +156,24 @@ export function ShotForm({
           </select>
         </label>
       </div>
+
+      <PinLeaveSelector
+        standingPins={standingPins}
+        onChange={(pins) => onChange({ leave_code: stringifyLeave(pins), pinfall: 10 - pins.length })}
+      />
+
       {advanced && (
         <div className="form-grid compact advanced-grid">
-          <NumberInput label="Rev rate" value={form.rev_rate} min={0} max={800} allowEmpty onChange={(v) => patch("rev_rate", v)} />
-          <NumberInput label="Axis rotation" value={form.axis_rotation} min={0} max={180} step={1} allowEmpty onChange={(v) => patch("axis_rotation", v)} />
-          <NumberInput label="Axis tilt" value={form.axis_tilt} min={0} max={90} step={1} allowEmpty onChange={(v) => patch("axis_tilt", v)} />
+          <NumberInput label="Rev rate" value={form.rev_rate} min={0} max={800} allowEmpty onChange={(v) => onChange({ rev_rate: v })} />
+          <NumberInput label="Axis rotation" value={form.axis_rotation} min={0} max={180} step={1} allowEmpty onChange={(v) => onChange({ axis_rotation: v })} />
+          <NumberInput label="Axis tilt" value={form.axis_tilt} min={0} max={90} step={1} allowEmpty onChange={(v) => onChange({ axis_tilt: v })} />
           <label className="field">
-            <span>Leave</span>
-            <input value={form.leave_code ?? ""} placeholder="e.g. 10 pin" onChange={(e) => patch("leave_code", e.target.value || null)} />
+            <span>Leave code</span>
+            <input value={form.leave_code ?? ""} placeholder="e.g. 10 or 7-10" onChange={(e) => onChange({ leave_code: e.target.value || null })} />
           </label>
           <label className="field span-4">
             <span>Notes</span>
-            <input value={form.notes ?? ""} placeholder="What did you see?" onChange={(e) => patch("notes", e.target.value || null)} />
+            <input value={form.notes ?? ""} placeholder="What did you see?" onChange={(e) => onChange({ notes: e.target.value || null })} />
           </label>
         </div>
       )}
