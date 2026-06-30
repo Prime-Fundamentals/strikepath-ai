@@ -863,3 +863,23 @@ td small { color:#526d7e; font-size:9px; margin-top:3px; }
   .lane-heading-actions { grid-template-columns:1fr; }
   .simple-line-summary { grid-template-columns:1fr 1fr; }
 }
+
+/* Pin-specific spare planning and realistic lane polish */
+.ai-setup-card.spare-plan { border-color:rgba(255,198,99,.3); background:radial-gradient(circle at 100% 0,rgba(255,198,99,.12),transparent 40%),linear-gradient(145deg,rgba(16,32,48,.99),rgba(7,18,29,.99)); }
+.spare-auto-banner { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:14px; padding:12px 14px; border-radius:13px; border:1px solid rgba(255,198,99,.22); background:rgba(255,198,99,.07); }
+.spare-auto-banner strong { color:#ffe1a8; font-size:12px; }
+.spare-auto-banner span { color:#9eb2bf; font-size:11px; line-height:1.45; }
+.ai-setup-grid { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.lane-svg { border-radius:18px; }
+.lane-panel { overflow:hidden; }
+
+@media (max-width: 1380px) {
+  .ai-setup-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media (max-width: 760px) {
+  .spare-auto-banner { align-items:flex-start; flex-direction:column; }
+  .ai-setup-grid { grid-template-columns:1fr 1fr; }
+}
+@media (max-width: 430px) {
+  .ai-setup-grid { grid-template-columns:1fr; }
+}

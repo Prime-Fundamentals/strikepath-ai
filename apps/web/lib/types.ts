@@ -40,6 +40,14 @@ export interface Recommendation {
   suggested_speed_mph: number | null;
   speed_title: string;
   speed_explanation: string;
+  shot_plan_type: string;
+  leave_pins: string | null;
+  suggested_feet_board: number | null;
+  suggested_laydown_board: number | null;
+  suggested_target_board: number | null;
+  suggested_breakpoint_board: number | null;
+  suggested_pocket_board: number | null;
+  recommended_ball_type: string;
   direction_label: string;
   adjustment_type: string;
   confidence: number;

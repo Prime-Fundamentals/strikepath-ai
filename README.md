@@ -116,3 +116,7 @@ Read these in order:
 ## Important product note
 
 The current lane transition model is an **estimate based on logged paths**, not a direct measurement of oil volume. The recommendation engine is deterministic and explainable. The included AR Tracking Phase 2 Beta performs browser-side frame-difference motion analysis after lane calibration, then requires user review and correction. It is not yet a trained bowling-ball identification model; reflections, unstable cameras, low light, and other moving objects can reduce confidence.
+
+## Pin-Specific Spare AI
+
+After a first-ball leave, StrikePath automatically switches to Spare mode and applies a pin-specific next-shot line based on the exact standing pins. The plan includes a straighter lane path, feet and target boards, finish board, suggested speed, confidence, and equipment guidance. See `docs/SPARE_AI.md`.

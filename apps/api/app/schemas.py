@@ -97,6 +97,14 @@ class RecommendationRead(BaseModel):
     suggested_speed_mph: float | None
     speed_title: str
     speed_explanation: str
+    shot_plan_type: str
+    leave_pins: str | None
+    suggested_feet_board: float | None
+    suggested_laydown_board: float | None
+    suggested_target_board: float | None
+    suggested_breakpoint_board: float | None
+    suggested_pocket_board: float | None
+    recommended_ball_type: str
     direction_label: str
     adjustment_type: str
     confidence: float

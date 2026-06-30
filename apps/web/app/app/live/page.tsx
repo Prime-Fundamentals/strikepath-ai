@@ -94,6 +94,19 @@ function nextWorkflow(previous: Workflow, shot: Shot): Workflow {
   return previous === "first" && shot.pinfall < 10 ? "spare" : "first";
 }
 
+function inferWorkflow(shots: Shot[]): Workflow {
+  const latest = shots[shots.length - 1];
+  if (!latest || latest.pinfall >= 10 || !latest.leave_code) return "first";
+  const previous = shots[shots.length - 2];
+  const isFirstBall = !previous || previous.game_number !== latest.game_number || previous.frame_number !== latest.frame_number;
+  return isFirstBall ? "spare" : "first";
+}
+
+function draftWithAiSetup(base: ShotInput, shot: Shot, handedness: "right" | "left") {
+  const setup = buildAISuggestedSetup(shot, shot.recommendation ?? null, handedness);
+  return setup?.planType === "spare" ? { ...base, ...setupToShotPatch(setup) } : base;
+}
+
 export default function LivePage() {
   const { user } = useAuth();
   const [session, setSession] = useState<SessionDetail | null>(null);
@@ -134,12 +147,20 @@ export default function LivePage() {
       const detail = await apiFetch<SessionDetail>(`/api/sessions/${active.id}`);
       setSession(detail);
       setLaneState(await apiFetch<LaneState>(`/api/sessions/${active.id}/lane-state`));
+      const inferred = inferWorkflow(detail.shots);
+      setWorkflow(inferred);
+      const loadedLatest = detail.shots[detail.shots.length - 1] ?? null;
+      if (user && loadedLatest) {
+        const base = createDraft(user.handedness, dashboardBalls, loadedLatest, inferred);
+        setDraft(inferred === "spare" ? draftWithAiSetup(base, loadedLatest, user.handedness) : base);
+        setShowAiSuggestion(inferred === "spare");
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load session");
     } finally {
       setQueued(getQueuedShots().length);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -185,7 +206,10 @@ export default function LivePage() {
   function switchWorkflow(next: Workflow) {
     if (!user || resultShot) return;
     setWorkflow(next);
-    setDraft(createDraft(user.handedness, balls, latest, next));
+    const base = createDraft(user.handedness, balls, latest, next);
+    const adjusted = next === "spare" && latest ? draftWithAiSetup(base, latest, user.handedness) : base;
+    setDraft(adjusted);
+    setShowAiSuggestion(next === "spare" && aiSetup?.planType === "spare");
     setEditMode(false);
   }
 
@@ -230,14 +254,19 @@ export default function LivePage() {
       setEditMode(false);
       const next = nextWorkflow(workflow, shot);
       setMessage(next === "spare"
-        ? `Shot #${shot.sequence_number} logged. Spare mode is ready, and the AI suggestion has been updated.`
+        ? `Shot #${shot.sequence_number} logged. The pin-specific spare line was applied automatically.`
         : `Shot #${shot.sequence_number} logged. The AI suggestion has been updated.`);
 
       if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
       resultTimerRef.current = setTimeout(() => {
         setResultShot(null);
         setWorkflow(next);
-        if (user) setDraft(createDraft(user.handedness, balls, shot, next));
+        if (user) {
+          const base = createDraft(user.handedness, balls, shot, next);
+          const adjusted = next === "spare" ? draftWithAiSetup(base, shot, user.handedness) : base;
+          setDraft(adjusted);
+          setShowAiSuggestion(next === "spare" && shot.recommendation?.shot_plan_type === "spare");
+        }
       }, 950);
     } catch (caught) {
       if (!navigator.onLine || caught instanceof TypeError) {
@@ -328,6 +357,7 @@ export default function LivePage() {
         visible={showAiSuggestion}
         onToggle={() => { setShowAiSuggestion((value) => !value); setEditMode(false); }}
         onApply={applyAiSetup}
+        autoApplied={workflow === "spare" && aiSetup?.planType === "spare"}
       />
 
       <div className="live-grid">
