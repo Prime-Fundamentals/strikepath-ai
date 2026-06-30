@@ -1,58 +1,209 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icons";
+import styles from "./landing.module.css";
 
-const features = [
-  ["live", "Live shot tracking", "Capture feet, target, breakpoint, speed, pocket result, and execution quality in seconds."],
-  ["spark", "Explainable recommendations", "Get 1-and-1, 2-and-1, and larger moves with confidence and the reason behind every suggestion."],
-  ["analytics", "Session intelligence", "Measure pocket rate, strike rate, target accuracy, transition, and adjustment success over time."],
-  ["ball", "Equipment-aware history", "Track your arsenal, surfaces, coverstocks, and which ball performs best on each condition."],
-  ["target", "Dynamic lane view", "Visualize the latest ball path, recent traffic, and an estimated friction map across 39 boards."],
-  ["wifi", "Center-ready offline mode", "Keep logging at low-connectivity bowling centers and synchronize queued shots when service returns."],
+const capabilities = [
+  {
+    icon: "live",
+    title: "Live lane decisions",
+    text: "Log the shot, see the line, and get a clear next-shot setup without digging through technical screens.",
+  },
+  {
+    icon: "target",
+    title: "Pin-specific spare planning",
+    text: "StrikePath reads the exact leave and builds a practical second-ball line for the pins that remain.",
+  },
+  {
+    icon: "camera",
+    title: "Camera-assisted tracking",
+    text: "Record or upload a shot, calibrate the lane, and review detected release, target, breakpoint, and pocket events.",
+  },
+  {
+    icon: "ball",
+    title: "Equipment-aware analysis",
+    text: "Connect every result to the ball, surface, speed, and release information that shaped the reaction.",
+  },
+  {
+    icon: "analytics",
+    title: "Session intelligence",
+    text: "Track strike rate, pocket rate, target accuracy, adjustment results, and performance by game.",
+  },
+  {
+    icon: "wifi",
+    title: "Bowling-center ready",
+    text: "Use a phone, tablet, or laptop and keep logging even when the center connection is unreliable.",
+  },
+];
+
+const steps = [
+  ["01", "Set the lane", "Choose the center, lane, pattern, hand, and ball."],
+  ["02", "Log the result", "Record the line, execution, speed, and pins left standing."],
+  ["03", "Review the setup", "See the recommended feet, target, speed, equipment, and spare plan."],
+  ["04", "Confirm the reaction", "The next shot updates the recommendation using your actual outcome."],
 ];
 
 export default function Home() {
   return (
-    <main className="marketing-page">
-      <header className="marketing-nav">
-        <Link href="/" className="marketing-brand"><span className="brand-orbit small"><span className="brand-ball" /></span><strong>STRIKEPATH</strong><em>AI</em></Link>
-        <nav><a href="#features">Features</a><a href="#workflow">How it works</a><Link href="/login">Sign in</Link><Link href="/register" className="nav-cta">Start free</Link></nav>
+    <main className={styles.page}>
+      <header className={styles.header}>
+        <Link href="/" className={styles.brand} aria-label="StrikePath AI home">
+          <span className={styles.brandMark} aria-hidden="true"><span /></span>
+          <span className={styles.brandText}><strong>StrikePath</strong><em>AI</em></span>
+        </Link>
+        <nav className={styles.desktopNav} aria-label="Primary navigation">
+          <a href="#platform">Platform</a>
+          <a href="#workflow">Workflow</a>
+          <a href="#tracking">AR tracking</a>
+        </nav>
+        <div className={styles.navActions}>
+          <Link href="/login" className={styles.signIn}>Sign in</Link>
+          <Link href="/register" className={styles.navCta}>Start free</Link>
+        </div>
       </header>
 
-      <section className="hero">
-        <video className="hero-video" autoPlay muted loop playsInline poster="/logo.jpg"><source src="/introloop.mp4" type="video/mp4" /></video>
-        <div className="hero-overlay" />
-        <div className="hero-grid" />
-        <div className="hero-content">
-          <span className="eyebrow"><Icon name="spark" width={16}/>Bowling lane intelligence</span>
-          <h1>Read the lane.<br/><span>Own the next shot.</span></h1>
-          <p>StrikePath AI turns every delivery into a clear visual, an estimated transition model, and a practical next-shot adjustment.</p>
-          <div className="hero-actions"><Link href="/register" className="primary-button">Build your first session <Icon name="chevron" width={18}/></Link><Link href="/login" className="secondary-button">Open dashboard</Link></div>
-          <div className="trust-row"><span><b>39</b> lane boards</span><span><b>60 ft</b> vector model</span><span><b>Explainable</b> recommendations</span></div>
-        </div>
-        <div className="hero-panel glass-panel">
-          <div className="mini-top"><span className="live-dot" />LIVE SESSION <small>Lane 18</small></div>
-          <div className="mini-lane">
-            {Array.from({length: 18}).map((_, i) => <i key={i}/>) }
-            <svg viewBox="0 0 240 360"><path d="M175 335 C 160 270 88 170 128 30" fill="none" stroke="#00efff" strokeWidth="5"/><circle cx="175" cy="335" r="8" fill="#071827" stroke="#fff" strokeWidth="3"/><circle cx="128" cy="30" r="7" fill="#fff" stroke="#00efff" strokeWidth="3"/></svg>
+      <section className={styles.hero}>
+        <video className={styles.heroVideo} autoPlay muted loop playsInline poster="/logo.jpg" aria-hidden="true">
+          <source src="/introloop.mp4" type="video/mp4" />
+        </video>
+        <div className={styles.heroShade} />
+        <div className={styles.heroContent}>
+          <div className={styles.heroCopy}>
+            <span className={styles.kicker}><i /> Bowling intelligence for every frame</span>
+            <h1>See the reaction.<br /><span>Make the next shot.</span></h1>
+            <p>
+              StrikePath AI turns shot results, lane position, equipment, and pin leaves into a practical setup you can use before the next delivery.
+            </p>
+            <div className={styles.heroActions}>
+              <Link href="/register" className={styles.primaryCta}>Create your bowling profile <Icon name="chevron" width={18} /></Link>
+              <Link href="/login" className={styles.secondaryCta}>Open dashboard</Link>
+            </div>
+            <div className={styles.heroProof}>
+              <span><b>39-board</b> lane mapping</span>
+              <span><b>Pin-specific</b> spare plans</span>
+              <span><b>Phone-first</b> session logging</span>
+            </div>
           </div>
-          <div className="mini-rec"><small>NEXT MOVE</small><strong>2 left with feet • 1 left target</strong><p>Two controlled shots finished high as the breakpoint moved earlier.</p><div><span style={{width:"82%"}} /></div></div>
+
+          <div className={styles.productPreview} aria-label="StrikePath AI live session preview">
+            <div className={styles.previewTop}>
+              <span><i /> LIVE SESSION</span>
+              <small>Lane 18 · House pattern</small>
+            </div>
+            <div className={styles.previewBody}>
+              <div className={styles.previewLane}>
+                <div className={styles.previewPins}>
+                  {[7,8,9,10,4,5,6,2,3,1].map((pin) => <span key={pin}>{pin}</span>)}
+                </div>
+                <svg viewBox="0 0 260 430" role="img" aria-label="Suggested bowling line">
+                  <path d="M 177 398 C 167 328 142 226 155 155 C 162 116 151 75 132 35" fill="none" stroke="rgba(121,249,255,.18)" strokeWidth="12" strokeLinecap="round" />
+                  <path d="M 177 398 C 167 328 142 226 155 155 C 162 116 151 75 132 35" fill="none" stroke="#78f7ff" strokeWidth="4.5" strokeLinecap="round" />
+                  <circle cx="177" cy="398" r="8" fill="#061522" stroke="#fff" strokeWidth="3" />
+                  <circle cx="155" cy="155" r="7" fill="#ffc66a" stroke="#fff" strokeWidth="2" />
+                  <circle cx="132" cy="35" r="8" fill="#fff" stroke="#00edf7" strokeWidth="3" />
+                </svg>
+                <span className={styles.laneTarget}>Target 13</span>
+                <span className={styles.laneFeet}>Feet 30</span>
+              </div>
+              <div className={styles.previewRecommendation}>
+                <small>NEXT SHOT</small>
+                <h3>Move 2 boards left, target 1 left</h3>
+                <p>The last two trusted deliveries finished high as the breakpoint moved earlier.</p>
+                <div className={styles.previewMetrics}>
+                  <span><small>Feet</small><strong>Board 32</strong></span>
+                  <span><small>Target</small><strong>Board 14</strong></span>
+                  <span><small>Confidence</small><strong>84%</strong></span>
+                </div>
+                <div className={styles.confidence}><span /></div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section id="features" className="marketing-section">
-        <div className="section-heading"><span>Built for useful decisions</span><h2>Every screen helps you make the next shot better.</h2><p>No black-box command. StrikePath shows what changed, why it matters, and how confident the system is.</p></div>
-        <div className="feature-grid">{features.map(([icon,title,description]) => <article key={title} className="feature-card"><span><Icon name={icon} width={24}/></span><h3>{title}</h3><p>{description}</p></article>)}</div>
+      <section className={styles.assuranceBar} aria-label="Product principles">
+        <span><Icon name="spark" width={18} /> Explainable recommendations</span>
+        <span><Icon name="target" width={18} /> Left- and right-handed views</span>
+        <span><Icon name="wifi" width={18} /> Offline shot queue</span>
+        <span><Icon name="camera" width={18} /> Guided camera tracking</span>
       </section>
 
-      <section id="workflow" className="workflow-section">
-        <div className="section-heading left"><span>A simple lane workflow</span><h2>Log. Learn. Adjust. Verify.</h2></div>
-        <div className="workflow-grid">
-          {[["01","Start the session","Choose the center, lane, pattern, and ball."],["02","Log the delivery","Enter your line and mark whether execution was trustworthy."],["03","Review the recommendation","See the feet and target move with an explanation."],["04","Verify the reaction","The next shot teaches the model whether the move worked."]].map(([n,t,d]) => <article key={n}><b>{n}</b><h3>{t}</h3><p>{d}</p></article>)}
+      <section id="platform" className={styles.section}>
+        <div className={styles.sectionHeading}>
+          <span>One focused platform</span>
+          <h2>Everything needed to read, adjust, and verify the lane.</h2>
+          <p>Designed for bowlers, coaches, teams, and pro shops without turning the session into a spreadsheet.</p>
+        </div>
+        <div className={styles.capabilityGrid}>
+          {capabilities.map((item) => (
+            <article key={item.title} className={styles.capabilityCard}>
+              <span className={styles.capabilityIcon}><Icon name={item.icon} width={23} /></span>
+              <h3>{item.title}</h3>
+              <p>{item.text}</p>
+            </article>
+          ))}
         </div>
       </section>
 
-      <section className="cta-section"><img src="/logo.jpg" alt="StrikePath AI"/><div><span>Ready to see your lane differently?</span><h2>Start a session in under a minute.</h2><Link href="/register" className="primary-button">Create your account</Link></div></section>
-      <footer className="marketing-footer"><span>© 2026 Prime Fundamentals LLC. All rights reserved.</span><span>StrikePath AI • Dynamic Lane Tracking & Optimization</span></footer>
+      <section id="workflow" className={styles.workflowSection}>
+        <div className={styles.workflowIntro}>
+          <span>A workflow built for the next delivery</span>
+          <h2>Less setup. More useful feedback.</h2>
+          <p>Every screen is organized around what the bowler needs to do next, with detailed controls available only when they are needed.</p>
+          <Link href="/register" className={styles.inlineLink}>Start a session <Icon name="chevron" width={17} /></Link>
+        </div>
+        <div className={styles.stepGrid}>
+          {steps.map(([number, title, text]) => (
+            <article key={number}>
+              <b>{number}</b>
+              <div><h3>{title}</h3><p>{text}</p></div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section id="tracking" className={styles.trackingSection}>
+        <div className={styles.trackingVisual}>
+          <div className={styles.phoneFrame}>
+            <div className={styles.phoneCamera}>
+              <div className={styles.cameraLane} />
+              <span className={styles.cornerOne} /><span className={styles.cornerTwo} /><span className={styles.cornerThree} /><span className={styles.cornerFour} />
+              <svg viewBox="0 0 260 440"><path d="M 190 410 C 180 320 118 220 148 86" fill="none" stroke="#7df8ff" strokeWidth="5" strokeLinecap="round" /></svg>
+              <div className={styles.cameraBadge}>Tracking confidence 82%</div>
+            </div>
+          </div>
+        </div>
+        <div className={styles.trackingCopy}>
+          <span>Camera-assisted tracking</span>
+          <h2>Bring the lane into the session.</h2>
+          <p>Record or upload a delivery, calibrate the lane, and review detected release, arrow crossing, breakpoint, pocket entry, speed, and angle.</p>
+          <div className={styles.trackingList}>
+            <span><i /> Local browser-side analysis</span>
+            <span><i /> Editable detections before saving</span>
+            <span><i /> Mobile and tablet capture workflow</span>
+          </div>
+          <Link href="/register" className={styles.secondaryCta}>Explore AR tracking</Link>
+        </div>
+      </section>
+
+      <section className={styles.finalCta}>
+        <div>
+          <span>Ready for a clearer lane decision?</span>
+          <h2>Build your first StrikePath session in minutes.</h2>
+        </div>
+        <div>
+          <Link href="/register" className={styles.primaryCta}>Create account</Link>
+          <Link href="/login" className={styles.secondaryCta}>Sign in</Link>
+        </div>
+      </section>
+
+      <footer className={styles.footer}>
+        <Link href="/" className={styles.brand} aria-label="StrikePath AI home">
+          <span className={styles.brandMark} aria-hidden="true"><span /></span>
+          <span className={styles.brandText}><strong>StrikePath</strong><em>AI</em></span>
+        </Link>
+        <p>Dynamic lane tracking and optimization by Prime Fundamentals LLC.</p>
+        <span>© 2026 Prime Fundamentals LLC</span>
+      </footer>
     </main>
   );
 }

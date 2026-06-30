@@ -1,0 +1,85 @@
+.workspace { display: grid; gap: 14px; min-width: 0; }
+.viewToolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.viewTabs, .editActions, .precisionGroup { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.viewTabs button, .editActions button, .precisionGroup button {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(141,177,197,.14);
+  background: #07131e;
+  color: #9db9c8;
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.viewTabs button:hover, .editActions button:hover, .precisionGroup button:hover { border-color: rgba(0,237,247,.28); color: #e9fbff; }
+.viewTabs button.active, .precisionGroup button.active { color: #effdff; border-color: rgba(0,237,247,.38); background: rgba(0,237,247,.1); }
+.viewTabs button:disabled, .editActions button:disabled, .precisionGroup button:disabled { opacity: .38; cursor: not-allowed; }
+.precisionToolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px; border-radius: 13px; border: 1px solid rgba(255,255,255,.06); background: rgba(0,0,0,.12); }
+.precisionGroup > span { color: #6f8b9d; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; font-weight: 900; }
+.viewport { position: relative; width: 100%; overflow: hidden; border-radius: 18px; min-height: 420px; background: rgba(0,0,0,.08); }
+.viewport.navigate { touch-action: none; cursor: grab; }
+.viewport.navigate:active { cursor: grabbing; }
+.zoomSurface { transform-origin: center center; transition: transform .08s linear; will-change: transform; }
+.viewport.navigate .zoomSurface { pointer-events: none; }
+.navigationHint { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 3; white-space: nowrap; padding: 7px 11px; border-radius: 999px; background: rgba(3,14,23,.9); border: 1px solid rgba(0,237,247,.18); color: #9adce7; font-size: 10px; font-weight: 800; pointer-events: none; }
+
+.overheadWrap { width: min(700px, 100%); margin: 0 auto; }
+.interactionToolbar { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; margin: 2px 0 12px; }
+.interactionToolbar button { min-height: 32px; padding: 0 10px; border-radius: 9px; border: 1px solid rgba(255,255,255,.08); background: #08131e; color: #9cb8c7; font-size: 10px; font-weight: 800; }
+.interactionToolbar button.active { color: #effcff; border-color: rgba(0,237,247,.35); background: rgba(0,237,247,.1); }
+.overheadSvg { display: block; width: 100%; height: auto; border-radius: 18px; touch-action: none; user-select: none; }
+.overheadSvg.editable { cursor: crosshair; }
+.overheadSvg.dragging { cursor: grabbing; }
+.marker { cursor: grab; }
+.marker:active { cursor: grabbing; }
+.pathHitbox { pointer-events: stroke; cursor: grab; }
+.pathHitbox:active { cursor: grabbing; }
+
+.viewNote { margin: 9px 2px 0; color: #668497; font-size: 10px; line-height: 1.55; text-align: center; }
+.legend { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 9px; color: #6d8798; font-size: 9px; }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.current { background: #72f8ff; }.breakpoint { background: #ffc66a; }.ai { background: #c999ff; }.standing { background: #fff; border: 1px solid #e84755; }
+
+.physicsCard { padding: 16px; border-radius: 16px; border: 1px solid rgba(0,237,247,.15); background: linear-gradient(145deg,rgba(8,29,44,.84),rgba(4,14,23,.92)); }
+.physicsHeading { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.physicsHeading small { color: #00edf7; font-size: 9px; letter-spacing: .12em; font-weight: 900; }
+.physicsHeading h3 { margin: 4px 0 0; font-size: 17px; }
+.physicsHeading > span { color: #84a4b6; font-size: 10px; }
+.phaseTrack { display: flex; overflow: hidden; height: 32px; margin: 13px 0; border-radius: 9px; background: rgba(255,255,255,.04); }
+.phaseTrack span { display: flex; align-items: center; justify-content: center; min-width: 40px; color: #061019; font-size: 9px; font-weight: 900; }
+.phaseTrack .skid { background: #78d8ff; }.phaseTrack .hook { background: #ffc663; }.phaseTrack .roll { background: #70efb3; }
+.metricGrid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.metricGrid span { padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.05); background: rgba(0,0,0,.12); }
+.metricGrid small, .metricGrid b { display: block; }
+.metricGrid small { color: #658296; font-size: 8px; text-transform: uppercase; letter-spacing: .06em; }
+.metricGrid b { margin-top: 4px; color: #e8fbff; font-size: 11px; }
+.physicsCard > p { margin: 11px 0 0; color: #7896a8; font-size: 10px; line-height: 1.55; }
+
+.perspectiveCard, .pinDeckCard { min-width: 0; }
+.perspectiveSvg, .pinDeckSvg { display: block; width: 100%; height: auto; border-radius: 16px; }
+.summaryRow { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin-top: 10px; }
+.summaryRow span { padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.06); background: rgba(0,0,0,.12); }
+.summaryRow small, .summaryRow b { display: block; }
+.summaryRow small { color: #668497; font-size: 8px; text-transform: uppercase; }.summaryRow b { margin-top: 4px; font-size: 12px; }
+.pinDeckCard { padding: 16px; border-radius: 17px; border: 1px solid rgba(255,198,99,.16); background: rgba(0,0,0,.13); }
+.pinDeckHeading { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+.pinDeckHeading small { color: #ffc66a; font-size: 9px; letter-spacing: .12em; font-weight: 900; }
+.pinDeckHeading h3 { margin: 4px 0 0; font-size: 18px; }.pinDeckHeading > span { color: #aebfca; font-size: 10px; text-align: right; }
+
+@media (max-width: 900px) {
+  .viewToolbar, .precisionToolbar { align-items: stretch; }
+  .viewTabs, .editActions, .precisionGroup { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
+  .viewTabs button, .precisionGroup button { flex: 0 0 auto; min-height: 40px; }
+  .editActions button { flex: 1; min-height: 40px; }
+  .metricGrid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .pinDeckHeading { flex-direction: column; }.pinDeckHeading > span { text-align: left; }
+}
+
+@media (max-width: 520px) {
+  .navigationHint { max-width: calc(100% - 24px); white-space: normal; text-align: center; }
+  .summaryRow { grid-template-columns: 1fr; }
+  .pinDeckCard { padding: 8px; }
+  .interactionToolbar { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; }
+  .interactionToolbar button { flex: 0 0 auto; }
+}

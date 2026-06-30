@@ -331,9 +331,9 @@ export default function LivePage() {
       <div className="page-heading live-heading">
         <div><span className="eyebrow small"><i className="live-dot" />Live • {session.center_name}</span><h1>Lane {session.lane_number || "—"}</h1><p>{handLabel(handedness)} • {session.shots.length} shots logged</p></div>
         <div className="heading-actions">
-          {queued > 0 && <button className="queued-pill" onClick={() => void syncQueue()}><Icon name="wifi" width={16} />{queued} queued</button>}
-          <button className="secondary-button small" onClick={undo} disabled={!session.shots.length || !!resultShot}>Undo</button>
-          <button className="danger-button small" onClick={finish} disabled={!!resultShot}>Finish</button>
+          {queued > 0 && <button type="button" className="queued-pill" onClick={() => void syncQueue()}><Icon name="wifi" width={16} />{queued} queued</button>}
+          <button type="button" className="secondary-button small" onClick={undo} disabled={!session.shots.length || !!resultShot}>Undo</button>
+          <button type="button" className="danger-button small" onClick={finish} disabled={!!resultShot}>Finish</button>
         </div>
       </div>
 
@@ -364,10 +364,10 @@ export default function LivePage() {
       <div className="live-grid">
         <section className="glass-panel lane-panel">
           <div className="panel-heading lane-simple-heading">
-            <div><small>Your shot line</small><h2>{editMode ? "Move the dots" : showAiSuggestion ? "AI line shown in purple" : "Current setup"}</h2></div>
+            <div><small>Your shot line</small><h2>{editMode ? "Adjust the setup" : showAiSuggestion ? "Current line + AI suggestion" : "Current setup"}</h2></div>
             <div className="lane-heading-actions">
-              <button type="button" className={`secondary-button small ${editMode ? "active" : ""}`} onClick={() => { setEditMode((value) => !value); setShowAiSuggestion(false); }}>{editMode ? "Done editing" : "Edit line"}</button>
-              <button type="button" className={`primary-button small ${showAiSuggestion ? "active" : ""}`} disabled={!aiSetup} onClick={() => { setShowAiSuggestion((value) => !value); setEditMode(false); }}>{showAiSuggestion ? "Hide AI line" : "Show AI suggestion"}</button>
+              {showAiSuggestion && <span className="lane-mode">AI line visible</span>}
+              <button type="button" aria-pressed={editMode} className={`secondary-button small ${editMode ? "active" : ""}`} onClick={() => { setEditMode((value) => !value); setShowAiSuggestion(false); }}>{editMode ? "Save line" : "Edit line"}</button>
             </div>
           </div>
           <LaneCanvas
@@ -405,7 +405,7 @@ export default function LivePage() {
       </div>
 
       <section className="glass-panel shot-strip">
-        <div className="panel-heading"><div><small>Recent shots</small><h2>Tap nothing—just review</h2></div></div>
+        <div className="panel-heading"><div><small>Recent shots</small><h2>Session history</h2></div></div>
         <div className="shot-cards">
           {session.shots.slice(-8).reverse().map((shot) => (
             <article key={shot.id}>

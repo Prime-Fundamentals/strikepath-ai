@@ -49,6 +49,11 @@ function smoothstep(value: number) {
   return t * t * (3 - 2 * t);
 }
 
+function smootherstep(value: number) {
+  const t = clamp(value, 0, 1);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
 function coverstockStrength(coverstock?: string | null) {
   const value = (coverstock || "").toLowerCase();
   if (value.includes("plastic") || value.includes("polyester")) return 0.12;
@@ -69,30 +74,33 @@ function interpolate(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
+/**
+ * Produces a stable display path that always passes through the four values the
+ * bowler entered. Equipment and release inputs affect the transition timing and
+ * curve tension, but never move the visible target, breakpoint, or pocket to a
+ * different board behind the user's back.
+ */
 function boardAtDistance(
   distanceFt: number,
   laydown: number,
   target: number,
   breakpoint: number,
   pocket: number,
-  breakpointDistance: number,
   hookStrength: number,
 ) {
   if (distanceFt <= 15) {
-    const t = smoothstep(distanceFt / 15);
-    return interpolate(laydown, target, t);
+    return interpolate(laydown, target, smoothstep(distanceFt / 15));
   }
 
-  if (distanceFt <= breakpointDistance) {
-    const t = (distanceFt - 15) / Math.max(1, breakpointDistance - 15);
-    const eased = Math.pow(clamp(t, 0, 1), 1.25 + (1 - hookStrength) * 0.6);
-    return interpolate(target, breakpoint, eased);
+  if (distanceFt <= 44) {
+    const t = (distanceFt - 15) / 29;
+    const tension = clamp(1.16 + (1 - hookStrength) * 0.26, 0.95, 1.45);
+    return interpolate(target, breakpoint, Math.pow(smootherstep(t), tension));
   }
 
-  const t = (distanceFt - breakpointDistance) / Math.max(1, 60 - breakpointDistance);
-  const exponent = clamp(1.75 - hookStrength * 0.85, 0.72, 1.65);
-  const eased = Math.pow(clamp(t, 0, 1), exponent);
-  return interpolate(breakpoint, pocket, eased);
+  const t = (distanceFt - 44) / 16;
+  const tension = clamp(1.18 - hookStrength * 0.32, 0.72, 1.2);
+  return interpolate(breakpoint, pocket, Math.pow(smootherstep(t), tension));
 }
 
 export function simulateBallPath({ shot, handedness, oilLengthFt, ball }: PhysicsInput): PhysicsResult {
@@ -135,31 +143,25 @@ export function simulateBallPath({ shot, handedness, oilLengthFt, ball }: Physic
   );
   const hookWindowFt = clamp(13 - hookStrength * 5 + axisTilt * 0.035, 5.5, 15);
   const hookEndFt = clamp(skidEndFt + hookWindowFt, skidEndFt + 4, 59);
-  const breakpointDistance = clamp(skidEndFt + 2.5 - hookStrength * 1.8, 28, 53);
-  const hookDirection = handedness === "right" ? 1 : -1;
-  const motionBias = hookDirection * clamp((hookStrength - 0.72) * 3.4 + (16.5 - speed) * 0.22, -2.8, 3.8);
-  const projectedBreakpointBoard = clamp(shot.breakpoint_board + motionBias * 0.55, 1, 39);
-  const projectedPocketBoard = clamp(shot.pocket_board + motionBias, 1, 39);
 
   const samples: PhysicsSample[] = [];
-  for (let distanceFt = 0; distanceFt <= 60; distanceFt += 1) {
+  for (let distanceFt = 0; distanceFt <= 60; distanceFt += 0.5) {
     const board = boardAtDistance(
       distanceFt,
       shot.laydown_board,
       shot.target_board,
-      projectedBreakpointBoard,
-      projectedPocketBoard,
-      breakpointDistance,
+      shot.breakpoint_board,
+      shot.pocket_board,
       hookStrength,
     );
     const phase: BallMotionPhase = distanceFt < skidEndFt ? "skid" : distanceFt < hookEndFt ? "hook" : "roll";
     samples.push({ distanceFt, board: clamp(board, 1, 39), phase });
   }
 
-  const sample54 = samples.find((sample) => sample.distanceFt === 54) ?? samples[samples.length - 7];
+  const sample54 = samples.find((sample) => sample.distanceFt === 54) ?? samples[samples.length - 13];
   const sample60 = samples[samples.length - 1];
-  const horizontalInches = Math.abs(sample60.board - sample54.board) * BOARD_WIDTH_IN;
-  const entryAngleDeg = Math.round((Math.atan2(horizontalInches, 72) * 180 / Math.PI) * 10) / 10;
+  const signedInches = (sample60.board - sample54.board) * BOARD_WIDTH_IN;
+  const entryAngleDeg = Math.round((Math.atan2(Math.abs(signedInches), 72) * 180 / Math.PI) * 10) / 10;
 
   const knownInputs = [
     shot.speed_mph,
@@ -173,17 +175,17 @@ export function simulateBallPath({ shot, handedness, oilLengthFt, ball }: Physic
   const confidence = Math.round(clamp(0.38 + knownInputs * 0.065, 0.38, 0.88) * 100) / 100;
 
   const notes = [
-    hookStrength > 0.95 ? "The current inputs predict an earlier, stronger friction response." : hookStrength < 0.5 ? "The current inputs predict a straighter, later response." : "The current inputs predict a balanced skid-to-hook transition.",
+    hookStrength > 0.95 ? "The inputs suggest an earlier, stronger response." : hookStrength < 0.5 ? "The inputs suggest a straighter, later response." : "The inputs suggest a balanced skid-to-hook transition.",
     skidEndFt > oilLengthFt + 3 ? "Speed and equipment are extending skid beyond the pattern length." : skidEndFt < oilLengthFt - 2 ? "Surface, revolutions, or cover strength are reading before the end of the pattern." : "The estimated skid phase is close to the end of the oil pattern.",
-    "This is a coaching simulation, not a certified lane-physics measurement.",
+    `The visible path honors the exact ${handedness === "left" ? "left-handed" : "right-handed"} setup entered by the bowler.`,
   ];
 
   return {
     samples,
     skidEndFt: Math.round(skidEndFt * 10) / 10,
     hookEndFt: Math.round(hookEndFt * 10) / 10,
-    projectedBreakpointBoard: Math.round(projectedBreakpointBoard * 100) / 100,
-    projectedPocketBoard: Math.round(projectedPocketBoard * 100) / 100,
+    projectedBreakpointBoard: Math.round(shot.breakpoint_board * 100) / 100,
+    projectedPocketBoard: Math.round(shot.pocket_board * 100) / 100,
     entryAngleDeg,
     hookStrength: Math.round(hookStrength * 100) / 100,
     confidence,
