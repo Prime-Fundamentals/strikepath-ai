@@ -94,6 +94,9 @@ class RecommendationRead(BaseModel):
     suggested_feet_depth_ft: float
     approach_title: str
     approach_explanation: str
+    suggested_speed_mph: float | None
+    speed_title: str
+    speed_explanation: str
     direction_label: str
     adjustment_type: str
     confidence: float

@@ -25,6 +25,9 @@ class RecommendationResult:
     suggested_feet_depth_ft: float = 11.5
     approach_title: str = "Hold your approach depth"
     approach_explanation: str = "Keep the same starting depth and tempo."
+    suggested_speed_mph: float | None = None
+    speed_title: str = "Hold your speed"
+    speed_explanation: str = "Repeat the same smooth tempo."
 
 
 def _quality_is_trustworthy(quality: str) -> bool:
@@ -82,6 +85,49 @@ def _approach_advice(current: ShotLike, recent: list[ShotLike]) -> tuple[float, 
     )
 
 
+
+def _speed_advice(current: ShotLike, recent: list[ShotLike]) -> tuple[float | None, str, str]:
+    speeds = [shot.speed_mph for shot in recent if shot.speed_mph is not None]
+    previous = [shot.speed_mph for shot in recent[:-1] if shot.speed_mph is not None]
+    baseline = mean(previous) if previous else (mean(speeds) if speeds else None)
+
+    if current.speed_mph is None:
+        return (
+            round(baseline, 1) if baseline is not None else None,
+            "Use your normal smooth speed",
+            "No speed was recorded for the last shot. Keep a comfortable, repeatable tempo rather than forcing extra speed.",
+        )
+
+    if current.delivery_quality == "slow":
+        suggested = baseline if baseline is not None else current.speed_mph + 0.5
+        return (
+            round(max(5.0, min(30.0, suggested)), 1),
+            "Add a little speed",
+            "The last delivery was marked slow. Keep the same line and return to your normal tempo without rushing the approach.",
+        )
+
+    if current.delivery_quality == "fast":
+        suggested = baseline if baseline is not None else current.speed_mph - 0.5
+        return (
+            round(max(5.0, min(30.0, suggested)), 1),
+            "Smooth the speed down",
+            "The last delivery was marked fast. Use a smoother first step and match your normal release tempo.",
+        )
+
+    if baseline is not None and abs(current.speed_mph - baseline) > 0.8:
+        return (
+            round(max(5.0, min(30.0, baseline)), 1),
+            "Return to your recent average",
+            "The last shot was noticeably different from your recent speed. Match the recent average before making another large lane move.",
+        )
+
+    return (
+        round(current.speed_mph, 1),
+        "Hold this speed",
+        "The last speed is close to your recent tempo. Repeat it and let the lane adjustment do the work.",
+    )
+
+
 def recommend(shots: list[ShotLike], handedness: str) -> RecommendationResult:
     if not shots:
         return RecommendationResult(
@@ -97,11 +143,15 @@ def recommend(shots: list[ShotLike], handedness: str) -> RecommendationResult:
     current = shots[-1]
     trusted = [shot for shot in shots[-5:] if _quality_is_trustworthy(shot.delivery_quality)]
     depth_delta, suggested_depth, approach_title, approach_explanation = _approach_advice(current, shots[-5:])
+    suggested_speed, speed_title, speed_explanation = _speed_advice(current, shots[-5:])
     approach = {
         "feet_depth_delta_ft": depth_delta,
         "suggested_feet_depth_ft": round(suggested_depth, 2),
         "approach_title": approach_title,
         "approach_explanation": approach_explanation,
+        "suggested_speed_mph": suggested_speed,
+        "speed_title": speed_title,
+        "speed_explanation": speed_explanation,
     }
 
     if current.delivery_quality in {"pulled", "missed_left", "missed_right"}:

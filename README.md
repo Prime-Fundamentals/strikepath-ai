@@ -1,7 +1,5 @@
 # StrikePath AI
 
-
-- Two-dimensional approach tracking with left/right board position, forward/backward starting depth, and AI approach suggestions.
 StrikePath AI is a production-oriented bowling web application foundation for dynamic shot tracking, explainable lane adjustments, equipment history, estimated lane transition, and session analytics.
 
 Built for **Prime Fundamentals LLC**.
@@ -16,6 +14,9 @@ Built for **Prime Fundamentals LLC**.
 - Live bowling sessions
 - Manual shot telemetry for feet, laydown, target, breakpoint, pocket, speed, rev rate, axis rotation, axis tilt, pinfall, and delivery quality
 - Explainable hold, confirm, 2-and-1, and 3-and-2 recommendations
+- Simplified three-step shot logging for nontechnical users
+- On-demand AI lane overlay with approach depth, target, speed, confidence, and optional ball suggestion
+- AI setup updates after every logged shot and can be applied to the next-shot draft with one button
 - Handedness-safe high/light detection
 - 39-board SVG lane visualization with correctly oriented pins, approach locator dots, arrows, and hand-specific numbering
 - Estimated oil-transition/friction grid based on logged ball traffic
@@ -110,6 +111,7 @@ Read these in order:
 3. [`docs/PRODUCTION_CHECKLIST.md`](docs/PRODUCTION_CHECKLIST.md)
 4. [`docs/AR_TRACKING.md`](docs/AR_TRACKING.md)
 5. [`docs/HANDEDNESS_MOBILE_GUIDES.md`](docs/HANDEDNESS_MOBILE_GUIDES.md)
+6. [`docs/SIMPLE_AI_WORKFLOW.md`](docs/SIMPLE_AI_WORKFLOW.md)
 
 ## Important product note
 

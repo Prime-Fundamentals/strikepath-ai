@@ -37,6 +37,9 @@ export interface Recommendation {
   suggested_feet_depth_ft: number;
   approach_title: string;
   approach_explanation: string;
+  suggested_speed_mph: number | null;
+  speed_title: string;
+  speed_explanation: string;
   direction_label: string;
   adjustment_type: string;
   confidence: number;

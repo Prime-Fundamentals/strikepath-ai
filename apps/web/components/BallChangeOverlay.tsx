@@ -1,12 +1,11 @@
-import type { Ball, Shot } from "@/lib/types";
+import type { Ball, Handedness, Shot } from "@/lib/types";
 import { Icon } from "./Icons";
 
 type Direction = "stronger" | "weaker";
 
 function baseStrength(coverstock: string) {
   const value = coverstock.toLowerCase();
-  if (value.includes("plastic")) return 1;
-  if (value.includes("polyester")) return 1;
+  if (value.includes("plastic") || value.includes("polyester")) return 1;
   if (value.includes("urethane")) return 2;
   if (value.includes("pearl")) return 3;
   if (value.includes("hybrid")) return 4;
@@ -25,60 +24,54 @@ function chooseAlternative(balls: Ball[], currentBallId: number | null, directio
   const ranked = [...balls].sort((a, b) => ballStrength(a) - ballStrength(b));
   const current = ranked.find((ball) => ball.id === currentBallId) ?? ranked[0];
   const currentIndex = ranked.findIndex((ball) => ball.id === current.id);
-  if (direction === "weaker") {
-    return ranked[Math.max(0, currentIndex - 1)] ?? null;
-  }
-  return ranked[Math.min(ranked.length - 1, currentIndex + 1)] ?? null;
+  return direction === "weaker"
+    ? ranked[Math.max(0, currentIndex - 1)] ?? null
+    : ranked[Math.min(ranked.length - 1, currentIndex + 1)] ?? null;
 }
 
-function getBallChangeSuggestion(latest: Shot | null, balls: Ball[]) {
-  if (!latest || balls.length < 2) return null;
-  if (latest.delivery_quality !== "good") return null;
+export function getBallChangeSuggestion(latest: Shot | null, balls: Ball[], handedness?: Handedness) {
+  if (!latest || balls.length < 2 || latest.delivery_quality !== "good") return null;
 
-  const highHit = latest.pocket_board >= 18.25;
-  const lightHit = latest.pocket_board <= 16.75;
+  const hand = handedness ?? latest.handedness ?? "right";
+  const pocket = hand === "right" ? 17.5 : 22.5;
+  const highSign = hand === "right" ? 1 : -1;
+  const normalizedError = (latest.pocket_board - pocket) * highSign;
 
-  if (highHit) {
+  if (normalizedError >= 0.75) {
     const alt = chooseAlternative(balls, latest.ball_id, "weaker");
     return {
-      title: "Possible ball change: weaker / cleaner shape",
-      explanation: "This shot finished a little high. If the lane keeps tightening up, a cleaner or weaker ball could help you stay in play longer.",
+      title: "Try a cleaner ball if this repeats",
+      explanation: "The last controlled shot finished high. If the same reaction repeats, a cleaner or weaker ball may create more room downlane.",
       ball: alt,
-      tag: "Weaker look",
+      tag: "Weaker / cleaner",
     };
   }
 
-  if (lightHit) {
+  if (normalizedError <= -0.75) {
     const alt = chooseAlternative(balls, latest.ball_id, "stronger");
     return {
-      title: "Possible ball change: stronger read",
-      explanation: "This shot looked light. If moves are not enough, a stronger ball or more surface may help the ball read the lane sooner.",
+      title: "Try a stronger ball if this repeats",
+      explanation: "The last controlled shot finished light. If the same reaction repeats, a stronger ball or more surface may read the lane sooner.",
       ball: alt,
-      tag: "Stronger look",
+      tag: "Stronger read",
     };
   }
 
   return null;
 }
 
-export function BallChangeOverlay({ latest, balls }: { latest: Shot | null; balls: Ball[] }) {
-  const suggestion = getBallChangeSuggestion(latest, balls);
+export function BallChangeOverlay({ latest, balls, handedness }: { latest: Shot | null; balls: Ball[]; handedness?: Handedness }) {
+  const suggestion = getBallChangeSuggestion(latest, balls, handedness);
   if (!suggestion) return null;
 
   return (
     <div className="ball-change-overlay glass-panel">
-      <div className="recommendation-kicker"><Icon name="ball" width={18} />Equipment suggestion</div>
+      <div className="recommendation-kicker"><Icon name="ball" width={18} />Optional equipment idea</div>
       <h3>{suggestion.title}</h3>
       <p>{suggestion.explanation}</p>
       <div className="ball-change-grid">
-        <div>
-          <small>Suggested move</small>
-          <strong>{suggestion.tag}</strong>
-        </div>
-        <div>
-          <small>Recommended ball</small>
-          <strong>{suggestion.ball ? `${suggestion.ball.manufacturer} ${suggestion.ball.model}` : "Current ball or add more arsenal data"}</strong>
-        </div>
+        <div><small>Shape</small><strong>{suggestion.tag}</strong></div>
+        <div><small>Ball</small><strong>{suggestion.ball ? `${suggestion.ball.manufacturer} ${suggestion.ball.model}` : "Keep current ball"}</strong></div>
       </div>
     </div>
   );

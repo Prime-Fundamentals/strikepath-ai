@@ -42,3 +42,19 @@ def test_fast_delivery_moves_approach_forward():
     result = recommend([Shot(17.5, speed_mph=16.0), Shot(17.5, speed_mph=16.1), Shot(17.5, speed_mph=17.4, delivery_quality="fast")], "right")
     assert result.feet_depth_delta_ft < 0
     assert result.suggested_feet_depth_ft == 11.0
+
+
+def test_slow_delivery_suggests_recent_speed():
+    result = recommend([
+        Shot(17.5, speed_mph=16.5),
+        Shot(17.5, speed_mph=16.4),
+        Shot(17.5, speed_mph=15.2, delivery_quality="slow"),
+    ], "right")
+    assert result.suggested_speed_mph == 16.4 or result.suggested_speed_mph == 16.5
+    assert "speed" in result.speed_title.lower()
+
+
+def test_good_delivery_holds_speed():
+    result = recommend([Shot(17.5, speed_mph=16.7)], "right")
+    assert result.suggested_speed_mph == 16.7
+    assert result.speed_title == "Hold this speed"

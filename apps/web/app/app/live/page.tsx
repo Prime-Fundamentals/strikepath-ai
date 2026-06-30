@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { buildAISuggestedSetup, setupToShotPatch } from "@/lib/aiSetup";
+import { formatBoard, handLabel, toDisplayBoard, toPhysicalBoard } from "@/lib/boards";
 import { getQueuedShots, queueShot, removeQueuedShot } from "@/lib/offline";
 import type { Ball, LaneState, SessionDetail, Shot, ShotInput } from "@/lib/types";
-import { formatBoard, handLabel, toDisplayBoard, toPhysicalBoard } from "@/lib/boards";
+import { AISuggestedSetup } from "@/components/AISuggestedSetup";
 import { LaneCanvas } from "@/components/LaneCanvas";
 import { ShotForm } from "@/components/ShotForm";
-import { RecommendationCard } from "@/components/RecommendationCard";
-import { BallChangeOverlay } from "@/components/BallChangeOverlay";
 import { parseLeave, stringifyLeave } from "@/components/PinLeaveSelector";
 import { Icon } from "@/components/Icons";
 import { useAuth } from "@/components/AuthProvider";
@@ -33,12 +33,7 @@ function availablePinsFor(workflow: Workflow, lastShot: Shot | null) {
   return leave.length ? leave : ALL_PINS;
 }
 
-function createDraft(
-  handedness: "right" | "left",
-  balls: Ball[],
-  lastShot: Shot | null,
-  workflow: Workflow,
-): ShotInput {
+function createDraft(handedness: "right" | "left", balls: Ball[], lastShot: Shot | null, workflow: Workflow): ShotInput {
   const defaultBall = balls.find((ball) => ball.is_primary) || balls[0] || null;
   const spareBall = pickSpareBall(balls);
   const availablePins = availablePinsFor(workflow, lastShot);
@@ -67,13 +62,10 @@ function createDraft(
   }
 
   const sourceHand = lastShot.handedness || "right";
-  const mirrorForCurrentHand = sourceHand !== handedness;
-  const sourceBoard = (board: number) => mirrorForCurrentHand ? 40 - board : board;
-  const recommendationSign = mirrorForCurrentHand ? -1 : 1;
-  const applyRecommendation = workflow === "first";
-  const feetDelta = applyRecommendation ? (lastShot.recommendation?.feet_delta || 0) * recommendationSign : 0;
-  const targetDelta = applyRecommendation ? (lastShot.recommendation?.target_delta || 0) * recommendationSign : 0;
-  const depthDelta = applyRecommendation ? (lastShot.recommendation?.feet_depth_delta_ft || 0) : 0;
+  const mirror = sourceHand !== handedness;
+  const sourceBoard = (board: number) => mirror ? 40 - board : board;
+  // Keep the bowler's last actual setup as the next draft. The AI setup is
+  // shown separately and is only applied when the user chooses “Use this setup”.
 
   return {
     ball_id: workflow === "spare"
@@ -81,10 +73,10 @@ function createDraft(
       : (lastShot.ball_id ?? defaultBall?.id ?? null),
     game_number: lastShot.game_number,
     frame_number: workflow === "first" ? Math.min(12, (lastShot.frame_number || 0) + 1) : lastShot.frame_number,
-    feet_board: clamp(sourceBoard(lastShot.feet_board) + feetDelta, 1, 39),
-    feet_depth_ft: clamp((lastShot.feet_depth_ft || 11.5) + depthDelta, 0.5, 15),
-    laydown_board: clamp(sourceBoard(lastShot.laydown_board) + feetDelta, 1, 39),
-    target_board: clamp(sourceBoard(lastShot.target_board) + targetDelta, 1, 39),
+    feet_board: clamp(sourceBoard(lastShot.feet_board), 1, 39),
+    feet_depth_ft: clamp(lastShot.feet_depth_ft || 11.5, 0.5, 15),
+    laydown_board: clamp(sourceBoard(lastShot.laydown_board), 1, 39),
+    target_board: clamp(sourceBoard(lastShot.target_board), 1, 39),
     breakpoint_board: sourceBoard(lastShot.breakpoint_board),
     pocket_board: physical(17.5),
     speed_mph: workflow === "spare" ? Math.max(lastShot.speed_mph || 16.5, 17) : (lastShot.speed_mph || 16.5),
@@ -99,8 +91,7 @@ function createDraft(
 }
 
 function nextWorkflow(previous: Workflow, shot: Shot): Workflow {
-  if (previous === "first" && shot.pinfall < 10) return "spare";
-  return "first";
+  return previous === "first" && shot.pinfall < 10 ? "spare" : "first";
 }
 
 export default function LivePage() {
@@ -115,17 +106,16 @@ export default function LivePage() {
   const [workflow, setWorkflow] = useState<Workflow>("first");
   const [draft, setDraft] = useState<ShotInput | null>(null);
   const [resultShot, setResultShot] = useState<Shot | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [showAiSuggestion, setShowAiSuggestion] = useState(false);
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastHandednessRef = useRef<"right" | "left" | null>(null);
-  const [createForm, setCreateForm] = useState({
-    center_name: "Practice Center",
-    lane_number: "",
-    oil_pattern_name: "Typical House Shot",
-    oil_length_ft: 41,
-  });
+  const [createForm, setCreateForm] = useState({ center_name: "Practice Center", lane_number: "", oil_pattern_name: "Typical House Shot", oil_length_ft: 41 });
 
   const latest = useMemo(() => session?.shots?.[session.shots.length - 1] ?? null, [session]);
   const availablePins = useMemo(() => availablePinsFor(workflow, latest), [workflow, latest]);
+  const handedness = user?.handedness || "right";
+  const aiSetup = useMemo(() => buildAISuggestedSetup(latest, latest?.recommendation ?? null, handedness), [latest, handedness]);
 
   const load = useCallback(async () => {
     try {
@@ -151,9 +141,7 @@ export default function LivePage() {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
     if (!user || !session || draft) return;
@@ -164,6 +152,7 @@ export default function LivePage() {
     if (!user || !session) return;
     if (lastHandednessRef.current && lastHandednessRef.current !== user.handedness) {
       setDraft(createDraft(user.handedness, balls, latest, workflow));
+      setShowAiSuggestion(false);
       setMessage(`Lane setup mirrored for your ${handLabel(user.handedness).toLowerCase()} profile.`);
     }
     lastHandednessRef.current = user.handedness;
@@ -177,10 +166,7 @@ export default function LivePage() {
     if (!navigator.onLine) return;
     for (const item of getQueuedShots()) {
       try {
-        await apiFetch<Shot>(`/api/sessions/${item.sessionId}/shots`, {
-          method: "POST",
-          body: JSON.stringify(item.payload),
-        });
+        await apiFetch<Shot>(`/api/sessions/${item.sessionId}/shots`, { method: "POST", body: JSON.stringify(item.payload) });
         removeQueuedShot(item.id);
       } catch {
         break;
@@ -200,6 +186,15 @@ export default function LivePage() {
     if (!user || resultShot) return;
     setWorkflow(next);
     setDraft(createDraft(user.handedness, balls, latest, next));
+    setEditMode(false);
+  }
+
+  function applyAiSetup() {
+    if (!aiSetup) return;
+    setDraft((current) => current ? ({ ...current, ...setupToShotPatch(aiSetup) }) : current);
+    setShowAiSuggestion(true);
+    setEditMode(false);
+    setMessage(`AI setup from shot #${latest?.sequence_number} applied to the next shot.`);
   }
 
   async function createSession(event: React.FormEvent) {
@@ -207,14 +202,13 @@ export default function LivePage() {
     setBusy(true);
     setError("");
     try {
-      const created = await apiFetch<SessionDetail>("/api/sessions", {
-        method: "POST",
-        body: JSON.stringify({ ...createForm, lane_number: createForm.lane_number || null }),
-      });
+      const created = await apiFetch<SessionDetail>("/api/sessions", { method: "POST", body: JSON.stringify({ ...createForm, lane_number: createForm.lane_number || null }) });
       const detail = await apiFetch<SessionDetail>(`/api/sessions/${created.id}`);
       setSession(detail);
       setLaneState(await apiFetch<LaneState>(`/api/sessions/${created.id}/lane-state`));
       setWorkflow("first");
+      setShowAiSuggestion(false);
+      setEditMode(false);
       if (user) setDraft(createDraft(user.handedness, balls, null, "first"));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to start session");
@@ -229,17 +223,15 @@ export default function LivePage() {
     setError("");
     setMessage("");
     try {
-      const shot = await apiFetch<Shot>(`/api/sessions/${session.id}/shots`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      const shot = await apiFetch<Shot>(`/api/sessions/${session.id}/shots`, { method: "POST", body: JSON.stringify(payload) });
       setSession({ ...session, shots: [...session.shots, shot], shot_count: session.shots.length + 1 });
       setLaneState(await apiFetch<LaneState>(`/api/sessions/${session.id}/lane-state`));
       setResultShot(shot);
+      setEditMode(false);
       const next = nextWorkflow(workflow, shot);
       setMessage(next === "spare"
-        ? "First ball logged. The remaining pins are loaded into Spare mode."
-        : "Shot logged and the next-shot setup is ready.");
+        ? `Shot #${shot.sequence_number} logged. Spare mode is ready, and the AI suggestion has been updated.`
+        : `Shot #${shot.sequence_number} logged. The AI suggestion has been updated.`);
 
       if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
       resultTimerRef.current = setTimeout(() => {
@@ -265,15 +257,12 @@ export default function LivePage() {
     const last = session.shots[session.shots.length - 1];
     if (!confirm(`Remove shot #${last.sequence_number}?`)) return;
     await apiFetch<void>(`/api/shots/${last.id}`, { method: "DELETE" });
-    const updated = {
-      ...session,
-      shots: session.shots.slice(0, -1),
-      shot_count: Math.max(0, session.shot_count - 1),
-    };
+    const updated = { ...session, shots: session.shots.slice(0, -1), shot_count: Math.max(0, session.shot_count - 1) };
     const newLatest = updated.shots[updated.shots.length - 1] ?? null;
     setSession(updated);
     setLaneState(await apiFetch<LaneState>(`/api/sessions/${session.id}/lane-state`));
     setWorkflow("first");
+    setShowAiSuggestion(false);
     if (user) setDraft(createDraft(user.handedness, balls, newLatest, "first"));
   }
 
@@ -290,13 +279,11 @@ export default function LivePage() {
   if (!session) {
     return (
       <div className="page-content">
-        <div className="page-heading">
-          <div><span className="eyebrow small">Live lane</span><h1>Start a bowling session</h1><p>Choose the lane condition before logging the first shot.</p></div>
-        </div>
+        <div className="page-heading"><div><span className="eyebrow small">Live lane</span><h1>Start a bowling session</h1><p>Choose the lane condition before logging the first shot.</p></div></div>
         {error && <div className="error-banner">{error}</div>}
         {message && <div className="success-banner">{message}</div>}
         <form className="glass-panel create-session-form" onSubmit={createSession}>
-          <div className="create-session-art"><span className="lane-orbit large"><span /></span><h2>New lane session</h2><p>StrikePath will track each controlled result and estimate how your line is transitioning.</p></div>
+          <div className="create-session-art"><span className="lane-orbit large"><span /></span><h2>New lane session</h2><p>Log each result and receive a simple next-shot setup.</p></div>
           <div className="form-grid">
             <label className="field span-2"><span>Bowling center</span><input required value={createForm.center_name} onChange={(event) => setCreateForm({ ...createForm, center_name: event.target.value })} /></label>
             <label className="field"><span>Lane</span><input value={createForm.lane_number} onChange={(event) => setCreateForm({ ...createForm, lane_number: event.target.value })} placeholder="18" /></label>
@@ -310,57 +297,62 @@ export default function LivePage() {
   }
 
   return (
-    <div className="page-content live-page">
+    <div className="page-content live-page simplified-live-page">
       <div className="page-heading live-heading">
-        <div>
-          <span className="eyebrow small"><i className="live-dot" />Live lane • {session.center_name}</span>
-          <h1>Lane {session.lane_number || "—"}</h1>
-          <p>{session.oil_pattern_name} • {session.oil_length_ft} ft • {session.shots.length} shots</p>
-        </div>
+        <div><span className="eyebrow small"><i className="live-dot" />Live • {session.center_name}</span><h1>Lane {session.lane_number || "—"}</h1><p>{handLabel(handedness)} • {session.shots.length} shots logged</p></div>
         <div className="heading-actions">
           {queued > 0 && <button className="queued-pill" onClick={() => void syncQueue()}><Icon name="wifi" width={16} />{queued} queued</button>}
-          <button className="secondary-button small" onClick={undo} disabled={!session.shots.length || !!resultShot}>Undo last</button>
-          <button className="danger-button small" onClick={finish} disabled={!!resultShot}>Finish session</button>
+          <button className="secondary-button small" onClick={undo} disabled={!session.shots.length || !!resultShot}>Undo</button>
+          <button className="danger-button small" onClick={finish} disabled={!!resultShot}>Finish</button>
         </div>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
       {message && <div className="success-banner">{message}</div>}
 
-      <section className="workflow-panel glass-panel">
-        <div>
-          <small>Shot workflow</small>
-          <h2>{workflow === "first" ? "First-ball setup" : workflow === "spare" ? "Spare conversion" : "Second-ball practice"}</h2>
-          <p>{handLabel(user?.handedness || "right")} board numbering is active. First-ball shots automatically advance to Spare mode whenever pins remain.</p>
-        </div>
-        <div className="workflow-tabs" role="tablist" aria-label="Shot workflow">
+      <section className="simple-workflow-bar glass-panel">
+        <div><small>Current shot</small><strong>{workflow === "first" ? "First ball" : workflow === "spare" ? "Spare attempt" : "Second ball"}</strong></div>
+        <div className="workflow-tabs" role="tablist">
           <button type="button" className={workflow === "first" ? "active" : ""} onClick={() => switchWorkflow("first")}>First ball</button>
-          <button type="button" className={workflow === "spare" ? "active" : ""} onClick={() => switchWorkflow("spare")}>Spare mode</button>
+          <button type="button" className={workflow === "spare" ? "active" : ""} onClick={() => switchWorkflow("spare")}>Spare</button>
           <button type="button" className={workflow === "second" ? "active" : ""} onClick={() => switchWorkflow("second")}>Second ball</button>
         </div>
       </section>
 
+      <AISuggestedSetup
+        latest={latest}
+        recommendation={latest?.recommendation ?? null}
+        setup={aiSetup}
+        handedness={handedness}
+        balls={balls}
+        visible={showAiSuggestion}
+        onToggle={() => { setShowAiSuggestion((value) => !value); setEditMode(false); }}
+        onApply={applyAiSetup}
+      />
+
       <div className="live-grid">
         <section className="glass-panel lane-panel">
-          <div className="panel-heading">
-            <div><small>Dynamic lane view</small><h2>Interactive line editor</h2></div>
-            <span className="lane-mode">Stable edit mode</span>
+          <div className="panel-heading lane-simple-heading">
+            <div><small>Your shot line</small><h2>{editMode ? "Move the dots" : showAiSuggestion ? "AI line shown in purple" : "Current setup"}</h2></div>
+            <div className="lane-heading-actions">
+              <button type="button" className={`secondary-button small ${editMode ? "active" : ""}`} onClick={() => { setEditMode((value) => !value); setShowAiSuggestion(false); }}>{editMode ? "Done editing" : "Edit line"}</button>
+              <button type="button" className={`primary-button small ${showAiSuggestion ? "active" : ""}`} disabled={!aiSetup} onClick={() => { setShowAiSuggestion((value) => !value); setEditMode(false); }}>{showAiSuggestion ? "Hide AI line" : "Show AI suggestion"}</button>
+            </div>
           </div>
           <LaneCanvas
             shots={session.shots}
             laneState={laneState}
             editableShot={draft ?? undefined}
             onEditShot={(patch) => setDraft((current) => current ? ({ ...current, ...patch }) : current)}
-            recommendation={latest?.recommendation ?? null}
             resultShot={resultShot}
-            handedness={user?.handedness || "right"}
+            handedness={handedness}
+            editMode={editMode}
+            showAiSuggestion={showAiSuggestion}
+            aiSetup={aiSetup}
           />
-          <p className="model-disclaimer">{laneState?.description || "Log a shot to generate the estimated lane model."}</p>
         </section>
 
         <aside className="live-controls">
-          <RecommendationCard recommendation={latest?.recommendation || null} />
-          <BallChangeOverlay latest={latest} balls={balls} />
           <div className="glass-panel shot-form-panel">
             {draft && (
               <ShotForm
@@ -371,7 +363,8 @@ export default function LivePage() {
                 onSubmit={submitShot}
                 workflow={workflow}
                 availablePins={availablePins}
-                handedness={user?.handedness || "right"}
+                handedness={handedness}
+                onRequestLineEdit={() => { setEditMode(true); setShowAiSuggestion(false); }}
               />
             )}
           </div>
@@ -379,12 +372,12 @@ export default function LivePage() {
       </div>
 
       <section className="glass-panel shot-strip">
-        <div className="panel-heading"><div><small>Shot history</small><h2>Latest deliveries</h2></div></div>
+        <div className="panel-heading"><div><small>Recent shots</small><h2>Tap nothing—just review</h2></div></div>
         <div className="shot-cards">
           {session.shots.slice(-8).reverse().map((shot) => (
             <article key={shot.id}>
               <span className={shot.pinfall === 10 ? "strike" : ""}>#{shot.sequence_number}</span>
-              <div><strong>{shot.pinfall === 10 ? "Strike" : `${shot.pinfall} pins`}</strong><small>Frame {shot.frame_number} • Pocket {formatBoard(toDisplayBoard(shot.pocket_board, user?.handedness || "right"))} • {shot.speed_mph ? `${shot.speed_mph} mph` : "No speed"}</small></div>
+              <div><strong>{shot.pinfall === 10 ? "Strike" : `${shot.pinfall} pins`}</strong><small>Target {formatBoard(toDisplayBoard(shot.target_board, handedness))} • {shot.speed_mph ? `${shot.speed_mph.toFixed(1)} mph` : "No speed"}</small></div>
               <em>{shot.delivery_quality.replaceAll("_", " ")}</em>
             </article>
           ))}
