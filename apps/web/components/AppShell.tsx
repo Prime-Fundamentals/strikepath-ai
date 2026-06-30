@@ -10,6 +10,7 @@ import { Icon } from "./Icons";
 const nav = [
   { href: "/app", label: "Dashboard", icon: "dashboard" },
   { href: "/app/live", label: "Live Session", icon: "live" },
+  { href: "/app/ar-tracking", label: "AR Tracking", icon: "camera" },
   { href: "/app/arsenal", label: "Ball Arsenal", icon: "ball" },
   { href: "/app/sessions", label: "Sessions", icon: "sessions" },
   { href: "/app/analytics", label: "Analytics", icon: "analytics" },

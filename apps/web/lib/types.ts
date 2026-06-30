@@ -136,3 +136,38 @@ export interface ShotInput {
   delivery_quality: string;
   notes: string | null;
 }
+
+export interface ARPoint {
+  x: number;
+  y: number;
+  label: string;
+}
+
+export interface ARTrackingCapture {
+  id: number;
+  user_id: number;
+  session_id: number | null;
+  source_type: "camera" | "upload";
+  status: "draft" | "reviewed" | "saved";
+  device_label: string | null;
+  calibration_points: ARPoint[];
+  path_points: ARPoint[];
+  derived_boards: Record<string, number>;
+  media_duration_sec: number | null;
+  media_key: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface ARTrackingCaptureInput {
+  session_id: number | null;
+  source_type: "camera" | "upload";
+  status: "draft" | "reviewed" | "saved";
+  device_label: string | null;
+  calibration_points: ARPoint[];
+  path_points: ARPoint[];
+  derived_boards: Record<string, number>;
+  media_duration_sec: number | null;
+  media_key: string | null;
+  notes: string | null;
+}

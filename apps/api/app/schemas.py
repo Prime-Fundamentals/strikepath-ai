@@ -169,3 +169,28 @@ class LaneStateRead(BaseModel):
     friction_grid: list[list[float]]
     paths: list[dict]
     description: str
+
+class ARPoint(BaseModel):
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+    label: str = Field(min_length=1, max_length=80)
+
+
+class ARTrackingCaptureCreate(BaseModel):
+    session_id: int | None = None
+    source_type: Literal["camera", "upload"] = "camera"
+    status: Literal["draft", "reviewed", "saved"] = "reviewed"
+    device_label: str | None = Field(default=None, max_length=180)
+    calibration_points: list[ARPoint] = Field(min_length=4, max_length=8)
+    path_points: list[ARPoint] = Field(min_length=2, max_length=20)
+    derived_boards: dict[str, float] = Field(default_factory=dict)
+    media_duration_sec: float | None = Field(default=None, ge=0, le=600)
+    media_key: str | None = Field(default=None, max_length=500)
+    notes: str | None = Field(default=None, max_length=3000)
+
+
+class ARTrackingCaptureRead(ARTrackingCaptureCreate):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    created_at: datetime

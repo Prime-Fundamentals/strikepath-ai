@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .database import Base, engine
-from .routers import auth, balls, sessions, shots
+from .routers import ar_tracking, auth, balls, sessions, shots
 from .seed import seed_demo_data
 
 settings = get_settings()
@@ -33,6 +33,7 @@ app.include_router(auth.router)
 app.include_router(balls.router)
 app.include_router(sessions.router)
 app.include_router(shots.router)
+app.include_router(ar_tracking.router)
 
 
 @app.get("/health")

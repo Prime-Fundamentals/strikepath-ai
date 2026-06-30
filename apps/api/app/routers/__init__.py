@@ -1,3 +1,3 @@
-from . import auth, balls, sessions, shots
+from . import ar_tracking, auth, balls, sessions, shots
 
-__all__ = ["auth", "balls", "sessions", "shots"]
+__all__ = ["ar_tracking", "auth", "balls", "sessions", "shots"]

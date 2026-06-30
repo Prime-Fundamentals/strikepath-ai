@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -25,6 +25,7 @@ class User(Base):
 
     balls: Mapped[list[BowlingBall]] = relationship(back_populates="owner", cascade="all, delete-orphan")
     sessions: Mapped[list[BowlingSession]] = relationship(back_populates="owner", cascade="all, delete-orphan")
+    ar_captures: Mapped[list[ARTrackingCapture]] = relationship(back_populates="owner", cascade="all, delete-orphan")
 
 
 class BowlingBall(Base):
@@ -67,6 +68,7 @@ class BowlingSession(Base):
         cascade="all, delete-orphan",
         order_by="Shot.sequence_number",
     )
+    ar_captures: Mapped[list[ARTrackingCapture]] = relationship(back_populates="session", cascade="all, delete-orphan")
 
 
 class Shot(Base):
@@ -115,3 +117,24 @@ class Recommendation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     shot: Mapped[Shot] = relationship(back_populates="recommendation")
+
+
+class ARTrackingCapture(Base):
+    __tablename__ = "ar_tracking_captures"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    session_id: Mapped[int | None] = mapped_column(ForeignKey("bowling_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    source_type: Mapped[str] = mapped_column(String(30), default="camera")
+    status: Mapped[str] = mapped_column(String(30), default="reviewed", index=True)
+    device_label: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    calibration_points: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    path_points: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    derived_boards: Mapped[dict] = mapped_column(JSON, default=dict)
+    media_duration_sec: Mapped[float | None] = mapped_column(Float, nullable=True)
+    media_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    owner: Mapped[User] = relationship(back_populates="ar_captures")
+    session: Mapped[BowlingSession | None] = relationship(back_populates="ar_captures")
