@@ -3,16 +3,16 @@
 const ALL_PINS = [1,2,3,4,5,6,7,8,9,10];
 
 const pinLayout = [
-  { pin: 1, row: 1, col: 4 },
-  { pin: 2, row: 2, col: 3 },
-  { pin: 3, row: 2, col: 5 },
-  { pin: 4, row: 3, col: 2 },
-  { pin: 5, row: 3, col: 4 },
-  { pin: 6, row: 3, col: 6 },
-  { pin: 7, row: 4, col: 1 },
-  { pin: 8, row: 4, col: 3 },
-  { pin: 9, row: 4, col: 5 },
-  { pin: 10, row: 4, col: 7 },
+  { pin: 7, row: 1, col: 1 },
+  { pin: 8, row: 1, col: 3 },
+  { pin: 9, row: 1, col: 5 },
+  { pin: 10, row: 1, col: 7 },
+  { pin: 4, row: 2, col: 2 },
+  { pin: 5, row: 2, col: 4 },
+  { pin: 6, row: 2, col: 6 },
+  { pin: 2, row: 3, col: 3 },
+  { pin: 3, row: 3, col: 5 },
+  { pin: 1, row: 4, col: 4 },
 ];
 
 function normalizePins(pins: number[]) {
@@ -94,7 +94,7 @@ export function PinLeaveSelector({
         })}
       </div>
 
-      <p className="pin-selector-help">Tap only the pins still standing after the shot. The shot pinfall is calculated automatically.</p>
+      <p className="pin-selector-help">Viewed from the bowler: the 7-8-9-10 row is farthest away and the 1 pin is closest. Tap only the pins still standing.</p>
     </div>
   );
 }

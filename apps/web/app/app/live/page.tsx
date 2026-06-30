@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getQueuedShots, queueShot, removeQueuedShot } from "@/lib/offline";
 import type { Ball, LaneState, SessionDetail, Shot, ShotInput } from "@/lib/types";
+import { formatBoard, handLabel, toDisplayBoard } from "@/lib/boards";
 import { LaneCanvas } from "@/components/LaneCanvas";
 import { ShotForm } from "@/components/ShotForm";
 import { RecommendationCard } from "@/components/RecommendationCard";
@@ -49,8 +50,8 @@ function createDraft(
       frame_number: 1,
       feet_board: handedness === "right" ? 25 : 15,
       laydown_board: handedness === "right" ? 22 : 18,
-      target_board: handedness === "right" ? 12 : 27,
-      breakpoint_board: handedness === "right" ? 8 : 31,
+      target_board: handedness === "right" ? 12 : 28,
+      breakpoint_board: handedness === "right" ? 8 : 32,
       pocket_board: handedness === "right" ? 17.5 : 22.5,
       speed_mph: workflow === "spare" ? 17.5 : 16.5,
       rev_rate: null,
@@ -309,7 +310,7 @@ export default function LivePage() {
         <div>
           <small>Shot workflow</small>
           <h2>{workflow === "first" ? "First-ball setup" : workflow === "spare" ? "Spare conversion" : "Second-ball practice"}</h2>
-          <p>First-ball shots automatically advance to Spare mode whenever pins remain.</p>
+          <p>{handLabel(user?.handedness || "right")} board numbering is active. First-ball shots automatically advance to Spare mode whenever pins remain.</p>
         </div>
         <div className="workflow-tabs" role="tablist" aria-label="Shot workflow">
           <button type="button" className={workflow === "first" ? "active" : ""} onClick={() => switchWorkflow("first")}>First ball</button>
@@ -331,6 +332,7 @@ export default function LivePage() {
             onEditShot={(patch) => setDraft((current) => current ? ({ ...current, ...patch }) : current)}
             recommendation={latest?.recommendation ?? null}
             resultShot={resultShot}
+            handedness={user?.handedness || "right"}
           />
           <p className="model-disclaimer">{laneState?.description || "Log a shot to generate the estimated lane model."}</p>
         </section>
@@ -348,6 +350,7 @@ export default function LivePage() {
                 onSubmit={submitShot}
                 workflow={workflow}
                 availablePins={availablePins}
+                handedness={user?.handedness || "right"}
               />
             )}
           </div>
@@ -360,7 +363,7 @@ export default function LivePage() {
           {session.shots.slice(-8).reverse().map((shot) => (
             <article key={shot.id}>
               <span className={shot.pinfall === 10 ? "strike" : ""}>#{shot.sequence_number}</span>
-              <div><strong>{shot.pinfall === 10 ? "Strike" : `${shot.pinfall} pins`}</strong><small>Frame {shot.frame_number} • Pocket {shot.pocket_board} • {shot.speed_mph ? `${shot.speed_mph} mph` : "No speed"}</small></div>
+              <div><strong>{shot.pinfall === 10 ? "Strike" : `${shot.pinfall} pins`}</strong><small>Frame {shot.frame_number} • Pocket {formatBoard(toDisplayBoard(shot.pocket_board, user?.handedness || "right"))} • {shot.speed_mph ? `${shot.speed_mph} mph` : "No speed"}</small></div>
               <em>{shot.delivery_quality.replaceAll("_", " ")}</em>
             </article>
           ))}

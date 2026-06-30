@@ -8,16 +8,19 @@ Built for **Prime Fundamentals LLC**.
 
 - Responsive landing page using the supplied logo and intro animation
 - Account registration and JWT authentication
-- Bowler handedness profile
+- Editable bowler profile with persisted left/right handedness
+- Mirrored left-handed board display across forms, lane graphics, shot history, recommendations, and AR telemetry
 - Ball arsenal with coverstock, surface, RG, differential, and notes
 - Live bowling sessions
 - Manual shot telemetry for feet, laydown, target, breakpoint, pocket, speed, rev rate, axis rotation, axis tilt, pinfall, and delivery quality
 - Explainable hold, confirm, 2-and-1, and 3-and-2 recommendations
 - Handedness-safe high/light detection
-- 39-board SVG lane visualization
+- 39-board SVG lane visualization with correctly oriented pins, approach locator dots, arrows, and hand-specific numbering
 - Estimated oil-transition/friction grid based on logged ball traffic
 - Offline shot queue and installable PWA shell
 - AR Tracking Phase 2 Beta with camera capture, video upload, lane-corner suggestions, browser-side motion tracking, confidence scoring, draggable correction, and estimated speed/entry angle
+- Searchable Guides & Tips center for lane basics, targeting, adjustments, spares, AR, phones, and tablets
+- Mobile-first navigation with a touch-friendly More sheet and tablet layouts
 - Session history and analytics
 - PostgreSQL, Alembic migrations, Docker, and Railway configuration
 - Health endpoints for both Railway services
@@ -104,6 +107,7 @@ Read these in order:
 2. [`docs/RAILWAY_SETUP.md`](docs/RAILWAY_SETUP.md)
 3. [`docs/PRODUCTION_CHECKLIST.md`](docs/PRODUCTION_CHECKLIST.md)
 4. [`docs/AR_TRACKING.md`](docs/AR_TRACKING.md)
+5. [`docs/HANDEDNESS_MOBILE_GUIDES.md`](docs/HANDEDNESS_MOBILE_GUIDES.md)
 
 ## Important product note
 

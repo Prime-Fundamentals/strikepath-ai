@@ -13,6 +13,7 @@ type AuthContextValue = {
   register: (payload: { email: string; password: string; display_name: string; handedness: "right" | "left" }) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
+  updateProfile: (payload: { display_name?: string; handedness?: "right" | "left" }) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -67,13 +68,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/app");
   }
 
+  async function updateProfile(payload: { display_name?: string; handedness?: "right" | "left" }) {
+    const updated = await apiFetch<User>("/api/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    setUser(updated);
+  }
+
   function logout() {
     clearToken();
     setUser(null);
     router.push("/");
   }
 
-  const value = useMemo(() => ({ user, loading, login, register, logout, refresh }), [user, loading, refresh]);
+  const value = useMemo(() => ({ user, loading, login, register, logout, refresh, updateProfile }), [user, loading, refresh]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

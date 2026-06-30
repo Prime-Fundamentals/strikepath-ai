@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icons";
+import { useAuth } from "@/components/AuthProvider";
 import { apiFetch } from "@/lib/api";
 import {
   analyzeBallMotion,
@@ -10,6 +11,7 @@ import {
   type ARVisionPoint,
 } from "@/lib/arVision";
 import type { ARPoint, ARTrackingCapture, ARTrackingCaptureInput, Session } from "@/lib/types";
+import { handLabel, toDisplayBoard } from "@/lib/boards";
 
 const calibrationLabels = ["Near left", "Near right", "Far left", "Far right"];
 const pathLabels = ["Laydown", "Target", "Breakpoint", "Pocket"];
@@ -43,6 +45,7 @@ function calibrationPolygon(points: ARPoint[], width: number, height: number) {
 }
 
 export default function ARTrackingPage() {
+  const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const analysisCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -95,6 +98,11 @@ export default function ARTrackingPage() {
     if (trackingConfidence !== null) result.tracking_confidence = trackingConfidence;
     return result;
   }, [calibration, pathPoints, estimatedSpeedMph, estimatedEntryAngleDeg, trackingConfidence]);
+
+  const displayBoard = useCallback((value: number | undefined) => {
+    if (value === undefined) return undefined;
+    return toDisplayBoard(value, user?.handedness || "right");
+  }, [user?.handedness]);
 
   const loadData = useCallback(async () => {
     try {
@@ -501,7 +509,7 @@ export default function ARTrackingPage() {
           <h1>Assisted computer-vision tracking</h1>
           <p>Record or upload a lane video, calibrate the lane, run local motion analysis, and correct the detected path before saving.</p>
         </div>
-        <div className="ar-beta-pill">Local vision assist beta</div>
+        <div className="ar-heading-badges"><div className="ar-beta-pill">Local vision assist beta</div><div className="ar-hand-pill">{handLabel(user?.handedness || "right")} boards</div></div>
       </div>
 
       {!secureCameraAvailable && <div className="error-banner">Live camera access requires HTTPS. Railway’s public domain will work; plain HTTP on another device will not.</div>}
@@ -513,6 +521,11 @@ export default function ARTrackingPage() {
           <div className="panel-heading">
             <div><small>CAMERA / VIDEO VIEW</small><h2>Lane and ball tracking workspace</h2></div>
             <span className="lane-mode">{trackingMode === "assisted" ? "Assisted track" : mode === "camera" ? "Live camera" : "Uploaded clip"}</span>
+          </div>
+          <div className="ar-hand-orientation">
+            <span>{user?.handedness === "left" ? "Left gutter" : "Opposite gutter"}</span>
+            <div>{[39,35,30,25,20,15,10,5,1].map((physical) => <b key={physical}>{user?.handedness === "left" ? 40 - physical : physical}</b>)}</div>
+            <span>{user?.handedness === "left" ? "Opposite gutter" : "Right gutter"}</span>
           </div>
 
           <div className="ar-video-shell">
@@ -593,7 +606,7 @@ export default function ARTrackingPage() {
                       <circle cx={point.x * overlayWidth} cy={point.y * overlayHeight} r="13" fill="#ffc663" stroke="#ffffff" strokeWidth="4" />
                       <rect x={point.x * overlayWidth + 15} y={point.y * overlayHeight - 18} width="145" height="30" rx="15" fill="rgba(3,15,24,.92)" stroke="#ffc663" />
                       <text x={point.x * overlayWidth + 87} y={point.y * overlayHeight + 3} textAnchor="middle" fill="#ffffff" fontSize="15" fontWeight="800">
-                        {point.label} • {formatBoard(deriveBoardFromCalibration(point, calibration) ?? undefined)}
+                        {point.label} • {formatBoard(displayBoard(deriveBoardFromCalibration(point, calibration) ?? undefined))}
                       </text>
                     </g>
                   ))}
@@ -676,11 +689,11 @@ export default function ARTrackingPage() {
           <section className="glass-panel ar-board-results">
             <div className="panel-heading"><div><small>ESTIMATED RESULT</small><h2>Shot telemetry</h2></div></div>
             <div className="ar-result-grid">
-              {pathLabels.map((label) => <div key={label}><small>{label}</small><strong>{formatBoard(derivedBoards[label.toLowerCase()])}</strong></div>)}
+              {pathLabels.map((label) => <div key={label}><small>{label}</small><strong>{formatBoard(displayBoard(derivedBoards[label.toLowerCase()]))}</strong></div>)}
               <div><small>Estimated speed</small><strong className="metric-value">{formatMetric(estimatedSpeedMph, "mph")}</strong></div>
               <div><small>Entry angle</small><strong className="metric-value">{formatMetric(estimatedEntryAngleDeg, "°")}</strong></div>
             </div>
-            <p>Board, speed, and angle values are coaching estimates. Review the path before using them as official telemetry.</p>
+            <p>{handLabel(user?.handedness || "right")} board numbers are shown. Board, speed, and angle values are coaching estimates. Review the path before using them as official telemetry.</p>
             <button type="button" className="primary-button wide" disabled={busy || calibration.length !== 4 || pathPoints.length !== 4} onClick={saveCapture}>{busy ? "Saving analysis…" : "Save AR analysis"}</button>
           </section>
 
@@ -697,8 +710,8 @@ export default function ARTrackingPage() {
           {captures.slice(0, 8).map((capture) => (
             <article key={capture.id}>
               <div><span>#{capture.id}</span><small>{capture.tracking_mode || "manual"} • {new Date(capture.created_at).toLocaleString()}</small></div>
-              <strong>Laydown {formatBoard(capture.derived_boards.laydown)} → Target {formatBoard(capture.derived_boards.target)}</strong>
-              <p>Breakpoint {formatBoard(capture.derived_boards.breakpoint)} • Pocket {formatBoard(capture.derived_boards.pocket)}</p>
+              <strong>Laydown {formatBoard(displayBoard(capture.derived_boards.laydown))} → Target {formatBoard(displayBoard(capture.derived_boards.target))}</strong>
+              <p>Breakpoint {formatBoard(displayBoard(capture.derived_boards.breakpoint))} • Pocket {formatBoard(displayBoard(capture.derived_boards.pocket))}</p>
               {(capture.estimated_speed_mph !== null || capture.tracking_confidence !== null) && <p>{capture.estimated_speed_mph !== null ? `${capture.estimated_speed_mph.toFixed(1)} mph` : "No speed"} • {capture.tracking_confidence !== null ? `${Math.round(capture.tracking_confidence * 100)}% confidence` : "Manual"}</p>}
               <button type="button" onClick={() => void deleteCapture(capture.id)}>Delete</button>
             </article>

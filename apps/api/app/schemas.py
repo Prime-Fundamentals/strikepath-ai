@@ -14,6 +14,11 @@ class UserCreate(BaseModel):
     handedness: Handedness = "right"
 
 
+class UserUpdate(BaseModel):
+    display_name: str | None = Field(default=None, min_length=2, max_length=120)
+    handedness: Handedness | None = None
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str

@@ -6,7 +6,7 @@ from ..auth import create_access_token, hash_password, verify_password
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import User
-from ..schemas import LoginRequest, TokenResponse, UserCreate, UserRead
+from ..schemas import LoginRequest, TokenResponse, UserCreate, UserRead, UserUpdate
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -38,4 +38,17 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserRead)
 def me(user: User = Depends(get_current_user)):
+    return user
+
+
+@router.patch("/me", response_model=UserRead)
+def update_me(payload: UserUpdate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    updates = payload.model_dump(exclude_unset=True)
+    if "display_name" in updates and updates["display_name"] is not None:
+        user.display_name = updates["display_name"].strip()
+    if "handedness" in updates and updates["handedness"] is not None:
+        user.handedness = updates["handedness"]
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user

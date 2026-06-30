@@ -12,3 +12,16 @@ This source package was validated before delivery with the following checks:
 - Next.js server-side API proxy reached the FastAPI health endpoint and returned HTTP 200.
 
 The package intentionally excludes generated dependencies and build output (`node_modules`, `.next`, Python caches). Install dependencies from the included lock and requirements files.
+
+## Handedness, Guides, and Mobile pass
+
+Validated after the handedness/mobile update:
+
+- Next.js production build: passed
+- TypeScript checking: passed
+- Static generation for `/app/guides` and `/app/profile`: passed
+- Existing API unit tests: 3 passed
+- Registration with left-handed profile: passed
+- `PATCH /api/auth/me` handedness update: passed
+- Left-handed board values are mirrored for display while physical storage remains unchanged
+- Live Session, shot history, recommendation overlay, and AR telemetry use the authenticated profile hand

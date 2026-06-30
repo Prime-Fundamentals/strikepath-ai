@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Ball, ShotInput } from "@/lib/types";
+import type { Ball, Handedness, ShotInput } from "@/lib/types";
+import { handLabel, toDisplayBoard, toPhysicalBoard } from "@/lib/boards";
 import { PinLeaveSelector, parseLeave, stringifyLeave } from "./PinLeaveSelector";
 
 function clamp(value: number, min: number, max: number) {
@@ -87,6 +88,7 @@ export function ShotForm({
   onSubmit,
   workflow,
   availablePins,
+  handedness,
 }: {
   balls: Ball[];
   form: ShotInput;
@@ -95,6 +97,7 @@ export function ShotForm({
   onSubmit: (payload: ShotInput) => Promise<void>;
   workflow: "first" | "spare" | "second";
   availablePins: number[];
+  handedness: Handedness;
 }) {
   const [advanced, setAdvanced] = useState(false);
 
@@ -123,7 +126,7 @@ export function ShotForm({
       </div>
 
       <div className="shot-form-tip">
-        <strong>{workflow === "first" ? "First-ball mode" : workflow === "spare" ? "Spare mode" : "Second-ball mode"}</strong> — Drag the markers directly on the lane, or fine-tune exact board numbers here. The pin diagram below will update pinfall and leave automatically.
+        <strong>{workflow === "first" ? "First-ball mode" : workflow === "spare" ? "Spare mode" : "Second-ball mode"}</strong> — {handLabel(handedness)} board numbering is active. Drag markers on the lane or fine-tune the same displayed numbers here.
       </div>
 
       <div className="form-grid compact">
@@ -140,11 +143,11 @@ export function ShotForm({
         </label>
         <NumberInput label="Game" value={form.game_number} min={1} max={20} onChange={(v) => onChange({ game_number: v || 1 })} />
         <NumberInput label="Frame" value={form.frame_number} min={1} max={12} onChange={(v) => onChange({ frame_number: v })} />
-        <NumberInput label="Feet board" value={form.feet_board} min={1} max={39} step={0.5} hint="Starting position on the approach." onChange={(v) => onChange({ feet_board: v || 1 })} />
-        <NumberInput label="Laydown" value={form.laydown_board} min={1} max={39} step={0.5} hint="Where the ball first contacts the lane." onChange={(v) => onChange({ laydown_board: v || 1 })} />
-        <NumberInput label="Arrow target" value={form.target_board} min={1} max={39} step={0.5} hint="Board crossed at 15 feet." onChange={(v) => onChange({ target_board: v || 1 })} />
-        <NumberInput label="Breakpoint" value={form.breakpoint_board} min={1} max={39} step={0.5} hint="Estimated hook point downlane." onChange={(v) => onChange({ breakpoint_board: v || 1 })} />
-        <NumberInput label="Pocket board" value={form.pocket_board} min={1} max={39} step={0.25} hint="Desired entry line through the pin deck." onChange={(v) => onChange({ pocket_board: v || 1 })} />
+        <NumberInput label={`Feet board (${handedness === "left" ? "LH" : "RH"})`} value={toDisplayBoard(form.feet_board, handedness)} min={1} max={39} step={0.5} hint="Starting position on the approach, counted from your bowling-hand gutter." onChange={(v) => onChange({ feet_board: toPhysicalBoard(v || 1, handedness) })} />
+        <NumberInput label={`Laydown (${handedness === "left" ? "LH" : "RH"})`} value={toDisplayBoard(form.laydown_board, handedness)} min={1} max={39} step={0.5} hint="Where the ball first contacts the lane." onChange={(v) => onChange({ laydown_board: toPhysicalBoard(v || 1, handedness) })} />
+        <NumberInput label={`Arrow target (${handedness === "left" ? "LH" : "RH"})`} value={toDisplayBoard(form.target_board, handedness)} min={1} max={39} step={0.5} hint="Board crossed near the arrow zone." onChange={(v) => onChange({ target_board: toPhysicalBoard(v || 1, handedness) })} />
+        <NumberInput label={`Breakpoint (${handedness === "left" ? "LH" : "RH"})`} value={toDisplayBoard(form.breakpoint_board, handedness)} min={1} max={39} step={0.5} hint="Estimated hook point downlane." onChange={(v) => onChange({ breakpoint_board: toPhysicalBoard(v || 1, handedness) })} />
+        <NumberInput label={`Pocket board (${handedness === "left" ? "LH" : "RH"})`} value={toDisplayBoard(form.pocket_board, handedness)} min={1} max={39} step={0.25} hint="Displayed from your side; stored in a neutral physical coordinate system." onChange={(v) => onChange({ pocket_board: toPhysicalBoard(v || 1, handedness) })} />
         <NumberInput label="Ball speed" value={form.speed_mph} min={5} max={30} step={0.1} hint="MPH at release or lane monitor." allowEmpty onChange={(v) => onChange({ speed_mph: v })} />
         <label className="field">
           <span>Pinfall</span>
