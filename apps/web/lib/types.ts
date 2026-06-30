@@ -153,6 +153,11 @@ export interface ARTrackingCapture {
   calibration_points: ARPoint[];
   path_points: ARPoint[];
   derived_boards: Record<string, number>;
+  tracking_mode: "manual" | "assisted";
+  tracking_confidence: number | null;
+  auto_track_points: ARPoint[];
+  estimated_speed_mph: number | null;
+  estimated_entry_angle_deg: number | null;
   media_duration_sec: number | null;
   media_key: string | null;
   notes: string | null;
@@ -167,6 +172,11 @@ export interface ARTrackingCaptureInput {
   calibration_points: ARPoint[];
   path_points: ARPoint[];
   derived_boards: Record<string, number>;
+  tracking_mode: "manual" | "assisted";
+  tracking_confidence: number | null;
+  auto_track_points: ARPoint[];
+  estimated_speed_mph: number | null;
+  estimated_entry_angle_deg: number | null;
   media_duration_sec: number | null;
   media_key: string | null;
   notes: string | null;

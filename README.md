@@ -17,7 +17,7 @@ Built for **Prime Fundamentals LLC**.
 - 39-board SVG lane visualization
 - Estimated oil-transition/friction grid based on logged ball traffic
 - Offline shot queue and installable PWA shell
-- AR Tracking Beta with camera capture, video upload, lane calibration, visual path marking, and estimated board extraction
+- AR Tracking Phase 2 Beta with camera capture, video upload, lane-corner suggestions, browser-side motion tracking, confidence scoring, draggable correction, and estimated speed/entry angle
 - Session history and analytics
 - PostgreSQL, Alembic migrations, Docker, and Railway configuration
 - Health endpoints for both Railway services
@@ -107,4 +107,4 @@ Read these in order:
 
 ## Important product note
 
-The current lane transition model is an **estimate based on logged paths**, not a direct measurement of oil volume. The recommendation engine is deterministic and explainable. The included AR Tracking Beta uses guided perspective calibration and manual path marking. Automatic computer-vision ball tracking and personalized machine learning remain later phases after reliable labeled shot data is collected.
+The current lane transition model is an **estimate based on logged paths**, not a direct measurement of oil volume. The recommendation engine is deterministic and explainable. The included AR Tracking Phase 2 Beta performs browser-side frame-difference motion analysis after lane calibration, then requires user review and correction. It is not yet a trained bowling-ball identification model; reflections, unstable cameras, low light, and other moving objects can reduce confidence.

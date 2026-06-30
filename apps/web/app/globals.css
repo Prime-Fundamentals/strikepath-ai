@@ -587,3 +587,31 @@ td small { color:#526d7e; font-size:9px; margin-top:3px; }
   .ar-instruction { left:8px; top:8px; padding:7px 9px; }
   .ar-instruction strong { font-size:11px; }
 }
+
+/* AR Tracking Phase 2 */
+.ar-analysis-canvas { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.ar-draggable-point { cursor:grab; touch-action:none; }
+.ar-draggable-point:active { cursor:grabbing; }
+.ar-timeline { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; margin-top:12px; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.06); background:rgba(0,0,0,.12); }
+.ar-timeline span { color:#7390a2; font-size:10px; font-variant-numeric:tabular-nums; }
+.ar-timeline input { width:100%; accent-color:var(--cyan); }
+.ar-assist-card { padding:22px; display:grid; gap:12px; }
+.ar-assist-card > p { margin:-4px 0 2px; color:#6f8b9d; font-size:10px; line-height:1.55; }
+.ar-confidence-box { padding:12px; border-radius:13px; border:1px solid rgba(255,198,99,.18); background:rgba(255,198,99,.055); display:grid; grid-template-columns:1fr auto; gap:5px 12px; }
+.ar-confidence-box span { color:#b9a77d; font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+.ar-confidence-box strong { color:#fff1c9; font-size:17px; }
+.ar-confidence-box p { grid-column:1/-1; margin:0; color:#9d927a; font-size:10px; line-height:1.5; }
+.ar-confidence-box.strong { border-color:rgba(97,239,177,.22); background:rgba(97,239,177,.055); }
+.ar-confidence-box.strong span,.ar-confidence-box.strong p { color:#87bba6; }
+.ar-confidence-box.strong strong { color:#c7ffe6; }
+.ar-confidence-box.review { border-color:rgba(255,198,99,.22); }
+.ar-analysis-progress { display:grid; gap:7px; }
+.ar-analysis-progress > div { height:6px; overflow:hidden; border-radius:999px; background:rgba(255,255,255,.07); }
+.ar-analysis-progress > div span { display:block; height:100%; background:linear-gradient(90deg,#1676e7,var(--cyan)); transition:width .12s linear; }
+.ar-analysis-progress small { color:#7896a8; font-size:10px; }
+.ar-result-grid .metric-value { font-size:17px; }
+
+@media (max-width: 720px) {
+  .ar-assist-card { padding:15px; }
+  .ar-timeline { grid-template-columns:34px 1fr 34px; gap:6px; }
+}

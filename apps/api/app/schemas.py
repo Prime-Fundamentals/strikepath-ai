@@ -184,6 +184,11 @@ class ARTrackingCaptureCreate(BaseModel):
     calibration_points: list[ARPoint] = Field(min_length=4, max_length=8)
     path_points: list[ARPoint] = Field(min_length=2, max_length=20)
     derived_boards: dict[str, float] = Field(default_factory=dict)
+    tracking_mode: Literal["manual", "assisted"] = "manual"
+    tracking_confidence: float | None = Field(default=None, ge=0, le=1)
+    auto_track_points: list[ARPoint] = Field(default_factory=list, max_length=500)
+    estimated_speed_mph: float | None = Field(default=None, ge=0, le=60)
+    estimated_entry_angle_deg: float | None = Field(default=None, ge=0, le=45)
     media_duration_sec: float | None = Field(default=None, ge=0, le=600)
     media_key: str | None = Field(default=None, max_length=500)
     notes: str | None = Field(default=None, max_length=3000)
