@@ -119,7 +119,6 @@ export default function LivePage() {
   const [workflow, setWorkflow] = useState<Workflow>("first");
   const [draft, setDraft] = useState<ShotInput | null>(null);
   const [resultShot, setResultShot] = useState<Shot | null>(null);
-  const [editMode, setEditMode] = useState(false);
   const [showAiSuggestion, setShowAiSuggestion] = useState(false);
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastHandednessRef = useRef<"right" | "left" | null>(null);
@@ -154,7 +153,7 @@ export default function LivePage() {
       if (user && loadedLatest) {
         const base = createDraft(user.handedness, dashboardBalls, loadedLatest, inferred);
         setDraft(inferred === "spare" ? draftWithAiSetup(base, loadedLatest, user.handedness) : base);
-        setShowAiSuggestion(inferred === "spare");
+        setShowAiSuggestion(Boolean(loadedLatest?.recommendation));
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load session");
@@ -211,14 +210,12 @@ export default function LivePage() {
     const adjusted = next === "spare" && latest ? draftWithAiSetup(base, latest, user.handedness) : base;
     setDraft(adjusted);
     setShowAiSuggestion(next === "spare" && aiSetup?.planType === "spare");
-    setEditMode(false);
   }
 
   function applyAiSetup() {
     if (!aiSetup) return;
     setDraft((current) => current ? ({ ...current, ...setupToShotPatch(aiSetup) }) : current);
     setShowAiSuggestion(true);
-    setEditMode(false);
     setMessage(`AI setup from shot #${latest?.sequence_number} applied to the next shot.`);
   }
 
@@ -233,8 +230,7 @@ export default function LivePage() {
       setLaneState(await apiFetch<LaneState>(`/api/sessions/${created.id}/lane-state`));
       setWorkflow("first");
       setShowAiSuggestion(false);
-      setEditMode(false);
-      if (user) setDraft(createDraft(user.handedness, balls, null, "first"));
+        if (user) setDraft(createDraft(user.handedness, balls, null, "first"));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to start session");
     } finally {
@@ -252,8 +248,7 @@ export default function LivePage() {
       setSession({ ...session, shots: [...session.shots, shot], shot_count: session.shots.length + 1 });
       setLaneState(await apiFetch<LaneState>(`/api/sessions/${session.id}/lane-state`));
       setResultShot(shot);
-      setEditMode(false);
-      const next = nextWorkflow(workflow, shot);
+        const next = nextWorkflow(workflow, shot);
       setMessage(next === "spare"
         ? `Shot #${shot.sequence_number} logged. The pin-specific spare line was applied automatically.`
         : `Shot #${shot.sequence_number} logged. The AI suggestion has been updated.`);
@@ -266,7 +261,7 @@ export default function LivePage() {
           const base = createDraft(user.handedness, balls, shot, next);
           const adjusted = next === "spare" ? draftWithAiSetup(base, shot, user.handedness) : base;
           setDraft(adjusted);
-          setShowAiSuggestion(next === "spare" && shot.recommendation?.shot_plan_type === "spare");
+          setShowAiSuggestion(Boolean(shot.recommendation));
         }
       }, 950);
     } catch (caught) {
@@ -356,7 +351,7 @@ export default function LivePage() {
         handedness={handedness}
         balls={balls}
         visible={showAiSuggestion}
-        onToggle={() => { setShowAiSuggestion((value) => !value); setEditMode(false); }}
+        onToggle={() => setShowAiSuggestion((value) => !value)}
         onApply={applyAiSetup}
         autoApplied={workflow === "spare" && aiSetup?.planType === "spare"}
       />
@@ -364,10 +359,10 @@ export default function LivePage() {
       <div className="live-grid">
         <section className="glass-panel lane-panel">
           <div className="panel-heading lane-simple-heading">
-            <div><small>Your shot line</small><h2>{editMode ? "Adjust the setup" : showAiSuggestion ? "Current line + AI suggestion" : "Current setup"}</h2></div>
+            <div><small>Your shot line</small><h2>{showAiSuggestion ? "Current line + AI suggestion" : "Current setup"}</h2></div>
             <div className="lane-heading-actions">
               {showAiSuggestion && <span className="lane-mode">AI line visible</span>}
-              <button type="button" aria-pressed={editMode} className={`secondary-button small ${editMode ? "active" : ""}`} onClick={() => { setEditMode((value) => !value); setShowAiSuggestion(false); }}>{editMode ? "Save line" : "Edit line"}</button>
+              <span className="lane-mode">Markers are always editable</span>
             </div>
           </div>
           <LaneCanvas
@@ -377,7 +372,6 @@ export default function LivePage() {
             onEditShot={(patch) => setDraft((current) => current ? ({ ...current, ...patch }) : current)}
             resultShot={resultShot}
             handedness={handedness}
-            editMode={editMode}
             showAiSuggestion={showAiSuggestion}
             aiSetup={aiSetup}
             activeBall={activeBall}
@@ -397,7 +391,6 @@ export default function LivePage() {
                 workflow={workflow}
                 availablePins={availablePins}
                 handedness={handedness}
-                onRequestLineEdit={() => { setEditMode(true); setShowAiSuggestion(false); }}
               />
             )}
           </div>

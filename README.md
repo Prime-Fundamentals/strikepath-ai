@@ -126,3 +126,7 @@ After a first-ball leave, StrikePath automatically switches to Spare mode and ap
 The live-session workspace now includes overhead and bowler-perspective views, enlarged pin-deck impact analysis, pinch zoom and pan, undo/redo, selectable board snapping, and a client-side skid/hook/roll simulation driven by release, ball, surface, and oil-pattern data.
 
 The AR Tracking workspace also includes one-tap automatic full-shot detection for lane calibration, release, arrows, breakpoint, pocket, speed, and entry-angle estimates. See `docs/ADVANCED_LANE_AND_TRACKING.md` for details and current limitations.
+
+## Pro bowler knowledge base
+
+See `docs/PRO_BOWLER_KNOWLEDGE_BASE.md` for the source-backed coaching rules used by the recommendation engine.

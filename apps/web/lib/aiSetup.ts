@@ -28,27 +28,27 @@ export function buildAISuggestedSetup(
   const board = (value: number) => mirror ? 40 - value : value;
   const sign = mirror ? -1 : 1;
 
-  if (
-    recommendation.shot_plan_type === "spare" &&
+  const hasExactSetup =
     recommendation.suggested_feet_board !== null &&
     recommendation.suggested_laydown_board !== null &&
     recommendation.suggested_target_board !== null &&
     recommendation.suggested_breakpoint_board !== null &&
-    recommendation.suggested_pocket_board !== null
-  ) {
+    recommendation.suggested_pocket_board !== null;
+
+  if (hasExactSetup) {
     return {
       sourceShotId: latest.id,
-      planType: "spare",
+      planType: recommendation.shot_plan_type === "spare" ? "spare" : "strike",
       leavePins: recommendation.leave_pins,
-      feetBoard: clampBoard(board(recommendation.suggested_feet_board)),
+      feetBoard: clampBoard(board(recommendation.suggested_feet_board!)),
       feetDepthFt: Math.max(0.5, Math.min(15, recommendation.suggested_feet_depth_ft ?? latest.feet_depth_ft ?? 11.5)),
-      laydownBoard: clampBoard(board(recommendation.suggested_laydown_board)),
-      targetBoard: clampBoard(board(recommendation.suggested_target_board)),
-      breakpointBoard: clampBoard(board(recommendation.suggested_breakpoint_board)),
-      pocketBoard: clampBoard(board(recommendation.suggested_pocket_board)),
+      laydownBoard: clampBoard(board(recommendation.suggested_laydown_board!)),
+      targetBoard: clampBoard(board(recommendation.suggested_target_board!)),
+      breakpointBoard: clampBoard(board(recommendation.suggested_breakpoint_board!)),
+      pocketBoard: clampBoard(board(recommendation.suggested_pocket_board!)),
       speedMph: recommendation.suggested_speed_mph ?? latest.speed_mph,
       confidence: recommendation.confidence,
-      recommendedBallType: recommendation.recommended_ball_type || "spare",
+      recommendedBallType: recommendation.recommended_ball_type || (recommendation.shot_plan_type === "spare" ? "spare" : "current"),
     };
   }
 

@@ -65,7 +65,6 @@ export function ShotForm({
   workflow,
   availablePins,
   handedness,
-  onRequestLineEdit,
 }: {
   balls: Ball[];
   form: ShotInput;
@@ -75,7 +74,6 @@ export function ShotForm({
   workflow: "first" | "spare" | "second";
   availablePins: number[];
   handedness: Handedness;
-  onRequestLineEdit?: () => void;
 }) {
   const [details, setDetails] = useState(false);
   const [advanced, setAdvanced] = useState(false);
@@ -134,7 +132,7 @@ export function ShotForm({
         <span>Feet <b>{formatBoard(toDisplayBoard(form.feet_board, handedness))}</b></span>
         <span>Distance <b>{form.feet_depth_ft.toFixed(1)} ft</b></span>
         <span>Target <b>{formatBoard(toDisplayBoard(form.target_board, handedness))}</b></span>
-        <button type="button" onClick={onRequestLineEdit}>Edit line on lane</button>
+        <span className="setup-edit-note">Drag any lane marker above to fine-tune the setup.</span>
       </div>
 
       {details && (

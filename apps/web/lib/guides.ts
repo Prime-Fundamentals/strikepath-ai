@@ -1,4 +1,4 @@
-export type GuideCategory = "Lane basics" | "Targeting" | "Adjustments" | "Spares" | "AR tracking" | "Mobile setup";
+export type GuideCategory = "Lane basics" | "Targeting" | "Adjustments" | "Spares" | "Pro strategy" | "AR tracking" | "Mobile setup";
 
 export interface BowlingGuide {
   id: string;
@@ -11,7 +11,7 @@ export interface BowlingGuide {
   tip: string;
 }
 
-export const guideCategories: GuideCategory[] = ["Lane basics", "Targeting", "Adjustments", "Spares", "AR tracking", "Mobile setup"];
+export const guideCategories: GuideCategory[] = ["Lane basics", "Targeting", "Adjustments", "Spares", "Pro strategy", "AR tracking", "Mobile setup"];
 
 export const bowlingGuides: BowlingGuide[] = [
   {
@@ -148,6 +148,67 @@ export const bowlingGuides: BowlingGuide[] = [
       "Add a note when the preferred path differs from a normal single-pin spare line.",
     ],
     tip: "The exact leave matters more than the total number of pins left.",
+  },
+
+  {
+    id: "pattern-exit-board",
+    category: "Pro strategy",
+    title: "Build a strike line from pattern length",
+    summary: "Use pattern length minus 31 as a starting exit-board estimate, then verify it with the actual ball reaction.",
+    level: "Advanced",
+    duration: "6 min",
+    steps: [
+      "Subtract 31 from the oil-pattern length to estimate the board where the ball should exit the pattern.",
+      "Treat the result as a starting point, not a guaranteed breakpoint.",
+      "Choose feet, laydown, and arrow targets that create room to reach that exit board and return to the pocket.",
+      "Confirm the line with one controlled shot and adjust from the observed pocket and breakpoint result.",
+    ],
+    tip: "A 41-foot pattern suggests an exit near board 10. Speed, rev rate, surface, lane topography, and transition can move the best playable line.",
+  },
+  {
+    id: "read-high-light",
+    category: "Pro strategy",
+    title: "Read high and light pocket hits",
+    summary: "Separate a lane-reaction miss from a delivery miss before moving your feet or target.",
+    level: "Intermediate",
+    duration: "5 min",
+    steps: [
+      "Mark pulled, missed-target, slow, or fast deliveries before asking for a lane move.",
+      "A trusted high hit usually calls for moving the line inside toward more oil.",
+      "A trusted light hit usually calls for moving the line outside toward earlier friction.",
+      "Use a 1-and-1, 2-and-1, or 3-and-2 move according to the size and repeatability of the miss.",
+    ],
+    tip: "StrikePath now gives a concrete move after every trusted shot, while confidence rises when the same reaction repeats.",
+  },
+  {
+    id: "entry-angle-energy",
+    category: "Pro strategy",
+    title: "Balance pocket board, entry angle, and energy",
+    summary: "A pocket hit still needs useful angle and retained energy to carry consistently.",
+    level: "Advanced",
+    duration: "7 min",
+    steps: [
+      "Use the pocket board to confirm where the ball entered the pin deck.",
+      "Use breakpoint-to-pocket movement to estimate entry angle.",
+      "If the ball arrives flat, review speed, rev rate, axis rotation, surface, and ball strength before making a large board move.",
+      "If the ball reads too early and loses energy, move into more oil or use a cleaner/weaker option.",
+    ],
+    tip: "The ideal six-degree entry-angle concept is a coaching target, not a promise that every lane and ball combination will carry the same way.",
+  },
+  {
+    id: "key-pin-spare-plan",
+    category: "Pro strategy",
+    title: "Use the key pin for every spare leave",
+    summary: "Identify the pin closest to the bowler and build the spare line around sending that pin through the remaining cluster.",
+    level: "Intermediate",
+    duration: "6 min",
+    steps: [
+      "Identify the key pin, which is the standing pin closest to the bowler.",
+      "For single pins, use a direct line through the pin center.",
+      "For clusters, shade the hit so the key pin drives through the remaining pins.",
+      "For splits, prioritize the lead-pin contact and understand that conversion confidence is lower.",
+    ],
+    tip: "Plastic or polyester equipment is usually the most repeatable choice for corner pins and many split attempts.",
   },
   {
     id: "camera-position",

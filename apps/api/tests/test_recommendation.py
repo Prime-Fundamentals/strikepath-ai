@@ -11,6 +11,9 @@ class Shot:
     laydown_board: float = 22
     breakpoint_board: float = 8
     speed_mph: float | None = 16.5
+    rev_rate: int | None = 320
+    axis_rotation: float | None = 45
+    axis_tilt: float | None = 12
     delivery_quality: str = "good"
     feet_depth_ft: float = 11.5
     pinfall: int = 10
@@ -19,15 +22,24 @@ class Shot:
     frame_number: int | None = 1
 
 
-def test_right_hander_repeated_high_move_left():
-    result = recommend([Shot(19.0), Shot(18.8)], "right")
+@dataclass
+class Ball:
+    coverstock: str = "reactive solid"
+    surface_grit: int | None = 2000
+    rg: float | None = 2.50
+    differential: float | None = 0.048
+
+
+def test_right_hander_single_high_shot_gets_immediate_move_left():
+    result = recommend([Shot(19.0)], "right", oil_length_ft=41, ball=Ball())
     assert result.feet_delta > 0
     assert result.target_delta > 0
     assert result.direction_label == "left"
+    assert result.suggested_feet_board is not None
 
 
-def test_left_hander_repeated_high_move_right():
-    result = recommend([Shot(21.0), Shot(21.1)], "left")
+def test_left_hander_single_high_shot_gets_immediate_move_right():
+    result = recommend([Shot(21.0, breakpoint_board=31.5)], "left", oil_length_ft=41, ball=Ball())
     assert result.feet_delta < 0
     assert result.direction_label == "right"
 
@@ -50,30 +62,25 @@ def test_fast_delivery_moves_approach_forward():
     assert result.suggested_feet_depth_ft == 11.0
 
 
-def test_slow_delivery_suggests_recent_speed():
-    result = recommend([
-        Shot(17.5, speed_mph=16.5),
-        Shot(17.5, speed_mph=16.4),
-        Shot(17.5, speed_mph=15.2, delivery_quality="slow"),
-    ], "right")
-    assert result.suggested_speed_mph == 16.4 or result.suggested_speed_mph == 16.5
-    assert "speed" in result.speed_title.lower()
-
-
-def test_good_delivery_holds_speed():
-    result = recommend([Shot(17.5, speed_mph=16.7)], "right")
+def test_good_pocket_holds_and_returns_exact_setup():
+    result = recommend([Shot(17.5, speed_mph=16.7, breakpoint_board=10)], "right", oil_length_ft=41)
     assert result.suggested_speed_mph == 16.7
-    assert result.speed_title == "Hold this speed"
+    assert result.adjustment_type == "hold"
+    assert result.suggested_pocket_board == 17.5
+
+
+def test_pattern_length_changes_suggested_breakpoint():
+    short = recommend([Shot(17.5, breakpoint_board=8)], "right", oil_length_ft=37)
+    long = recommend([Shot(17.5, breakpoint_board=12)], "right", oil_length_ft=45)
+    assert short.suggested_breakpoint_board is not None
+    assert long.suggested_breakpoint_board is not None
+    assert long.suggested_breakpoint_board > short.suggested_breakpoint_board
 
 
 def test_single_ten_pin_creates_spare_plan():
     shot = Shot(17.5)
     shot.leave_code = "10"
     shot.pinfall = 9
-    shot.frame_number = 1
-    shot.game_number = 1
-    shot.laydown_board = 22
-    shot.breakpoint_board = 8
     result = recommend([shot], "right")
     assert result.shot_plan_type == "spare"
     assert result.leave_pins == "10"
@@ -82,20 +89,18 @@ def test_single_ten_pin_creates_spare_plan():
     assert result.recommended_ball_type == "spare"
 
 
+def test_single_seven_pin_creates_cross_lane_plan():
+    shot = Shot(17.5, leave_code="7", pinfall=9)
+    result = recommend([shot], "right")
+    assert result.shot_plan_type == "spare"
+    assert result.suggested_pocket_board is not None
+    assert result.suggested_pocket_board > 34
+    assert result.suggested_feet_board is not None
+    assert result.suggested_feet_board < 10
+
+
 def test_second_ball_does_not_create_third_spare_plan():
-    first = Shot(17.5)
-    first.leave_code = "10"
-    first.pinfall = 9
-    first.frame_number = 1
-    first.game_number = 1
-    first.laydown_board = 22
-    first.breakpoint_board = 8
-    second = Shot(17.5)
-    second.leave_code = "10"
-    second.pinfall = 0
-    second.frame_number = 1
-    second.game_number = 1
-    second.laydown_board = 28
-    second.breakpoint_board = 8
+    first = Shot(17.5, leave_code="10", pinfall=9, frame_number=1)
+    second = Shot(17.5, leave_code="10", pinfall=0, frame_number=1)
     result = recommend([first, second], "right")
     assert result.shot_plan_type == "strike"

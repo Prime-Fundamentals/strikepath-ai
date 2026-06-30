@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Ball, Handedness, LaneState, Shot, ShotInput } from "@/lib/types";
 import type { AISuggestedSetup } from "@/lib/aiSetup";
 import { simulateBallPath } from "@/lib/physicsEngine";
-import { OverheadLaneCanvas, type LaneSnapMode } from "./OverheadLaneCanvas";
+import { OverheadLaneCanvas } from "./OverheadLaneCanvas";
 import { BowlerPerspectiveLane } from "./BowlerPerspectiveLane";
 import { PinDeckZoom } from "./PinDeckZoom";
 import styles from "./LaneCanvas.module.css";
@@ -35,7 +35,6 @@ export function LaneCanvas({
   onEditShot,
   resultShot = null,
   handedness,
-  editMode = false,
   showAiSuggestion = false,
   aiSetup = null,
   activeBall = null,
@@ -54,7 +53,6 @@ export function LaneCanvas({
   oilLengthFt?: number;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>("overhead");
-  const [snapMode, setSnapMode] = useState<LaneSnapMode>("half");
   const [interactionMode, setInteractionMode] = useState<InteractionMode>("edit");
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -68,6 +66,7 @@ export function LaneCanvas({
   const latest = shots[shots.length - 1] ?? null;
   const sourceShot = resultShot ?? editableShot ?? latest;
   const historyKey = `${latest?.id ?? 0}:${editableShot?.game_number ?? 0}:${editableShot?.frame_number ?? 0}:${handedness}`;
+  const canEdit = Boolean(editableShot && onEditShot && !resultShot);
 
   function setHistoryState(nextHistory: LaneDraft[], nextIndex: number) {
     historyRef.current = nextHistory;
@@ -83,14 +82,6 @@ export function LaneCanvas({
     }
     setHistoryState([toLaneDraft(editableShot)], 0);
   }, [historyKey]);
-
-  useEffect(() => {
-    if (!editMode) {
-      setInteractionMode("edit");
-      setZoom(1);
-      setPan({ x: 0, y: 0 });
-    }
-  }, [editMode]);
 
   useEffect(() => {
     setZoom(1);
@@ -110,9 +101,7 @@ export function LaneCanvas({
     const next = { ...current, ...patch } as LaneDraft;
     if (sameDraft(current, next)) return;
 
-    const existing = historyRef.current;
-    const currentIndex = indexRef.current;
-    const base = existing.slice(0, currentIndex + 1);
+    const base = historyRef.current.slice(0, indexRef.current + 1);
     if (!base.length || !sameDraft(base[base.length - 1], current)) base.push(current);
     if (!sameDraft(base[base.length - 1], next)) base.push(next);
     const trimmed = base.slice(-40);
@@ -123,17 +112,15 @@ export function LaneCanvas({
   function undo() {
     if (!onEditShot || indexRef.current <= 0) return;
     const nextIndex = indexRef.current - 1;
-    const snapshot = historyRef.current[nextIndex];
     setHistoryState(historyRef.current, nextIndex);
-    onEditShot(snapshot);
+    onEditShot(historyRef.current[nextIndex]);
   }
 
   function redo() {
     if (!onEditShot || indexRef.current < 0 || indexRef.current >= historyRef.current.length - 1) return;
     const nextIndex = indexRef.current + 1;
-    const snapshot = historyRef.current[nextIndex];
     setHistoryState(historyRef.current, nextIndex);
-    onEditShot(snapshot);
+    onEditShot(historyRef.current[nextIndex]);
   }
 
   function resetViewport() {
@@ -190,7 +177,7 @@ export function LaneCanvas({
           <button type="button" className={viewMode === "perspective" ? styles.active : ""} onClick={() => setViewMode("perspective")}>Bowler view</button>
           <button type="button" className={viewMode === "pinDeck" ? styles.active : ""} onClick={() => setViewMode("pinDeck")}>Pin deck</button>
         </div>
-        {editMode && (
+        {canEdit && (
           <div className={styles.editActions}>
             <button type="button" onClick={undo} disabled={historyIndex <= 0}>Undo</button>
             <button type="button" onClick={redo} disabled={historyIndex < 0 || historyIndex >= history.length - 1}>Redo</button>
@@ -198,18 +185,14 @@ export function LaneCanvas({
         )}
       </div>
 
-      {viewMode === "overhead" && editMode && (
+      {viewMode === "overhead" && canEdit && (
         <div className={styles.precisionToolbar}>
           <div className={styles.precisionGroup}>
-            <span>Snap</span>
-            {(["free","quarter","half","full"] as LaneSnapMode[]).map((mode) => (
-              <button key={mode} type="button" className={snapMode === mode ? styles.active : ""} onClick={() => setSnapMode(mode)}>
-                {mode === "free" ? "Free" : mode === "quarter" ? "¼ board" : mode === "half" ? "½ board" : "1 board"}
-              </button>
-            ))}
+            <strong>Direct editing</strong>
+            <span>Markers move freely without snapping.</span>
           </div>
           <div className={styles.precisionGroup}>
-            <button type="button" className={interactionMode === "edit" ? styles.active : ""} onClick={() => setInteractionMode("edit")}>Edit line</button>
+            <button type="button" className={interactionMode === "edit" ? styles.active : ""} onClick={() => setInteractionMode("edit")}>Move markers</button>
             <button type="button" className={interactionMode === "navigate" ? styles.active : ""} onClick={() => setInteractionMode("navigate")}>Zoom / pan</button>
             <button type="button" onClick={resetViewport} disabled={zoom === 1 && pan.x === 0 && pan.y === 0}>Reset view</button>
             <span>{Math.round(zoom * 100)}%</span>
@@ -234,12 +217,12 @@ export function LaneCanvas({
               onEditShot={handleEdit}
               resultShot={resultShot}
               handedness={handedness}
-              editMode={editMode && interactionMode === "edit"}
+              editMode={canEdit && interactionMode === "edit"}
               showAiSuggestion={showAiSuggestion}
               aiSetup={aiSetup}
               activeBall={activeBall}
               oilLengthFt={oilLengthFt}
-              snapMode={snapMode}
+              snapMode="free"
             />
           </div>
           {interactionMode === "navigate" && <div className={styles.navigationHint}>Drag to pan · pinch or mouse-wheel to zoom</div>}

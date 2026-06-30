@@ -82,16 +82,16 @@
 .previewTop > span i { width: 7px; height: 7px; border-radius: 50%; background: #61efb1; box-shadow: 0 0 10px #61efb1; }
 .previewTop small { color: #6f8796; font-size: 10px; }
 .previewBody { display: grid; grid-template-columns: minmax(210px, .9fr) 1.1fr; min-height: 515px; }
-.previewLane { position: relative; margin: 18px; border: 1px solid rgba(255,255,255,.07); border-radius: 14px; overflow: hidden; background: repeating-linear-gradient(90deg, #b77f43 0 8px, #dcb374 8px 16px, #c08a4e 16px 24px); box-shadow: inset 0 0 50px rgba(74, 40, 12, .2); }
-.previewLane::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(130,247,255,.11), transparent 58%); pointer-events: none; }
-.previewLane svg { position: absolute; inset: 58px 12px 18px; width: calc(100% - 24px); height: calc(100% - 76px); z-index: 2; }
-.previewPins { position: absolute; z-index: 3; left: 50%; top: 14px; width: 150px; height: 55px; transform: translateX(-50%); }
-.previewPins span { position: absolute; width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; background: #fff; border: 2px solid #e94b57; color: #15242c; font-size: 6px; font-weight: 900; }
-.previewPins span:nth-child(1){left:10px;top:0}.previewPins span:nth-child(2){left:48px;top:0}.previewPins span:nth-child(3){left:86px;top:0}.previewPins span:nth-child(4){left:124px;top:0}
-.previewPins span:nth-child(5){left:29px;top:14px}.previewPins span:nth-child(6){left:67px;top:14px}.previewPins span:nth-child(7){left:105px;top:14px}
-.previewPins span:nth-child(8){left:48px;top:28px}.previewPins span:nth-child(9){left:86px;top:28px}.previewPins span:nth-child(10){left:67px;top:42px}
-.laneTarget, .laneFeet { position: absolute; z-index: 4; padding: 6px 9px; border-radius: 999px; background: rgba(3, 15, 24, .9); border: 1px solid rgba(0, 237, 247, .45); color: #e8fcff; font-size: 8px; font-weight: 850; }
-.laneTarget { left: 12px; top: 42%; }.laneFeet { right: 12px; bottom: 15px; }
+.previewLane { position: relative; margin: 18px; min-height: 478px; border: 1px solid rgba(255,255,255,.08); border-radius: 16px; overflow: hidden; background: #07121c; box-shadow: inset 0 0 60px rgba(0,0,0,.32), 0 20px 45px rgba(0,0,0,.2); }
+.previewLane::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(130,247,255,.05), transparent 45%); pointer-events: none; }
+.previewLaneHeader { position: absolute; z-index: 4; top: 10px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #b8faff; font-size: 7px; font-weight: 900; letter-spacing: .11em; }
+.previewLaneHeader small { color: #7892a2; font-size: 7px; font-weight: 700; letter-spacing: 0; }
+.previewLane svg { position: absolute; inset: 34px 8px 30px; width: calc(100% - 16px); height: calc(100% - 64px); z-index: 2; }
+.previewLaneLegend { position: absolute; z-index: 4; left: 12px; right: 12px; bottom: 9px; display: flex; justify-content: center; gap: 14px; color: #7893a3; font-size: 7px; font-weight: 800; }
+.previewLaneLegend span { display: inline-flex; align-items: center; gap: 5px; }
+.previewLaneLegend i { width: 15px; height: 2px; display: inline-block; border-radius: 3px; }
+.currentLegend { background: #7df8ff; box-shadow: 0 0 8px rgba(125,248,255,.45); }
+.suggestedLegend { border-top: 2px dashed #c29aff; background: transparent !important; }
 .previewRecommendation { padding: 27px 24px 24px 10px; align-self: center; }
 .previewRecommendation > small { color: #00edf7; letter-spacing: .14em; font-size: 9px; font-weight: 900; }
 .previewRecommendation h3 { margin: 10px 0 9px; font-size: 25px; line-height: 1.12; letter-spacing: -.035em; }

@@ -24,6 +24,7 @@ def create_shot(session_id: int, payload: ShotCreate, user: User = Depends(get_c
     session = owned_session(session_id, user.id, db)
     if session.status != "active":
         raise HTTPException(status_code=409, detail="This session has already been completed")
+    ball = None
     if payload.ball_id:
         ball = db.scalar(select(BowlingBall).where(BowlingBall.id == payload.ball_id, BowlingBall.user_id == user.id))
         if not ball:
@@ -34,7 +35,7 @@ def create_shot(session_id: int, payload: ShotCreate, user: User = Depends(get_c
     db.flush()
 
     recent = list(db.scalars(select(Shot).where(Shot.session_id == session.id).order_by(Shot.sequence_number.asc())))
-    result = recommend(recent, user.handedness)
+    result = recommend(recent, user.handedness, oil_length_ft=session.oil_length_ft, ball=ball)
     recommendation = Recommendation(shot_id=shot.id, **result.__dict__)
     db.add(recommendation)
     db.commit()

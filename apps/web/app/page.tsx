@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icons";
+import { LandingLanePreview } from "@/components/LandingLanePreview";
 import styles from "./landing.module.css";
 
 const capabilities = [
@@ -90,27 +91,14 @@ export default function Home() {
               <small>Lane 18 · House pattern</small>
             </div>
             <div className={styles.previewBody}>
-              <div className={styles.previewLane}>
-                <div className={styles.previewPins}>
-                  {[7,8,9,10,4,5,6,2,3,1].map((pin) => <span key={pin}>{pin}</span>)}
-                </div>
-                <svg viewBox="0 0 260 430" role="img" aria-label="Suggested bowling line">
-                  <path d="M 177 398 C 167 328 142 226 155 155 C 162 116 151 75 132 35" fill="none" stroke="rgba(121,249,255,.18)" strokeWidth="12" strokeLinecap="round" />
-                  <path d="M 177 398 C 167 328 142 226 155 155 C 162 116 151 75 132 35" fill="none" stroke="#78f7ff" strokeWidth="4.5" strokeLinecap="round" />
-                  <circle cx="177" cy="398" r="8" fill="#061522" stroke="#fff" strokeWidth="3" />
-                  <circle cx="155" cy="155" r="7" fill="#ffc66a" stroke="#fff" strokeWidth="2" />
-                  <circle cx="132" cy="35" r="8" fill="#fff" stroke="#00edf7" strokeWidth="3" />
-                </svg>
-                <span className={styles.laneTarget}>Target 13</span>
-                <span className={styles.laneFeet}>Feet 30</span>
-              </div>
+              <LandingLanePreview />
               <div className={styles.previewRecommendation}>
                 <small>NEXT SHOT</small>
-                <h3>Move 2 boards left, target 1 left</h3>
-                <p>The last two trusted deliveries finished high as the breakpoint moved earlier.</p>
+                <h3>Move 2 boards inside, target 1 inside</h3>
+                <p>The last two trusted deliveries finished high. Shift the line into more oil and verify the reaction with one controlled shot.</p>
                 <div className={styles.previewMetrics}>
                   <span><small>Feet</small><strong>Board 32</strong></span>
-                  <span><small>Target</small><strong>Board 14</strong></span>
+                  <span><small>Target</small><strong>Board 15</strong></span>
                   <span><small>Confidence</small><strong>84%</strong></span>
                 </div>
                 <div className={styles.confidence}><span /></div>
