@@ -901,3 +901,79 @@ td small { color:#526d7e; font-size:9px; margin-top:3px; }
 .lane-svg .path-drag-hitbox {
   pointer-events: stroke;
 }
+
+/* Advanced lane workspace */
+.lane-workspace { display:grid; gap:14px; min-width:0; }
+.lane-view-toolbar,.lane-precision-toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.lane-view-tabs,.lane-edit-actions,.lane-snap-selector,.lane-navigation-selector { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.lane-view-tabs button,.lane-edit-actions button,.lane-snap-selector button,.lane-navigation-selector button {
+  min-height:34px; padding:0 11px; border-radius:10px; border:1px solid rgba(141,177,197,.14); background:#07131e; color:#9db9c8; font-size:10px; font-weight:800;
+}
+.lane-view-tabs button.active,.lane-snap-selector button.active,.lane-navigation-selector button.active { color:#effdff; border-color:rgba(0,237,247,.34); background:rgba(0,237,247,.1); }
+.lane-edit-actions button:disabled,.lane-navigation-selector button:disabled { opacity:.35; cursor:not-allowed; }
+.lane-snap-selector > span,.lane-navigation-selector > span { color:#6f8b9d; font-size:9px; text-transform:uppercase; letter-spacing:.08em; font-weight:900; }
+.lane-precision-toolbar { padding:10px; border-radius:13px; border:1px solid rgba(255,255,255,.06); background:rgba(0,0,0,.12); }
+.lane-gesture-viewport { position:relative; width:100%; overflow:hidden; border-radius:18px; min-height:400px; }
+.lane-gesture-viewport.navigate { touch-action:none; cursor:grab; background:rgba(0,0,0,.08); }
+.lane-gesture-viewport.navigate:active { cursor:grabbing; }
+.lane-zoom-surface { transform-origin:center center; transition:transform .12s ease-out; will-change:transform; }
+.lane-gesture-viewport.navigate .lane-zoom-surface { pointer-events:none; }
+.lane-navigation-hint { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); z-index:3; white-space:nowrap; padding:7px 11px; border-radius:999px; background:rgba(3,14,23,.88); border:1px solid rgba(0,237,247,.18); color:#9adce7; font-size:10px; font-weight:800; pointer-events:none; }
+
+.physics-insight-card { padding:16px; border-radius:16px; border:1px solid rgba(0,237,247,.15); background:linear-gradient(145deg,rgba(8,29,44,.84),rgba(4,14,23,.92)); }
+.physics-insight-heading { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.physics-insight-heading small { color:var(--cyan); font-size:9px; letter-spacing:.12em; font-weight:900; }
+.physics-insight-heading h3 { margin:4px 0 0; font-size:17px; }
+.physics-insight-heading > span { color:#84a4b6; font-size:10px; }
+.physics-phase-track { display:flex; overflow:hidden; height:34px; margin:14px 0; border-radius:10px; background:rgba(255,255,255,.04); }
+.physics-phase-track span { display:flex; align-items:center; justify-content:center; min-width:42px; color:#061019; font-size:9px; font-weight:900; }
+.physics-phase-track .skid { background:#78d8ff; }
+.physics-phase-track .hook { background:#ffc663; }
+.physics-phase-track .roll { background:#70efb3; }
+.physics-metric-grid,.physics-factor-row { display:grid; gap:8px; }
+.physics-metric-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.physics-factor-row { grid-template-columns:repeat(6,minmax(0,1fr)); margin-top:8px; }
+.physics-metric-grid span,.physics-factor-row span { padding:10px; border-radius:11px; border:1px solid rgba(255,255,255,.05); background:rgba(0,0,0,.12); }
+.physics-metric-grid small,.physics-factor-row small,.physics-metric-grid b,.physics-factor-row b { display:block; }
+.physics-metric-grid small,.physics-factor-row small { color:#658296; font-size:8px; text-transform:uppercase; letter-spacing:.06em; }
+.physics-metric-grid b,.physics-factor-row b { margin-top:4px; color:#e8fbff; font-size:11px; }
+.physics-insight-card > p { margin:12px 0 0; color:#7896a8; font-size:10px; line-height:1.55; }
+
+.perspective-lane-card,.pin-deck-zoom-card { min-width:0; }
+.perspective-lane-svg,.pin-deck-zoom-svg { display:block; width:100%; height:auto; }
+.perspective-phase-row,.pin-impact-tips { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:10px; }
+.perspective-phase-row span,.pin-impact-tips span { padding:10px; border-radius:11px; border:1px solid rgba(255,255,255,.06); background:rgba(0,0,0,.12); }
+.perspective-phase-row small,.pin-impact-tips small,.perspective-phase-row b,.pin-impact-tips b { display:block; }
+.perspective-phase-row small,.pin-impact-tips small { color:#668497; font-size:8px; text-transform:uppercase; }
+.perspective-phase-row b,.pin-impact-tips b { margin-top:4px; font-size:12px; }
+.pin-deck-zoom-card { padding:15px; border-radius:17px; border:1px solid rgba(255,198,99,.16); background:rgba(0,0,0,.13); }
+.pin-deck-zoom-heading { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:8px; }
+.pin-deck-zoom-heading small { color:var(--gold); font-size:9px; letter-spacing:.12em; font-weight:900; }
+.pin-deck-zoom-heading h3 { margin:4px 0 0; font-size:18px; }
+.pin-deck-zoom-heading > span { color:#aebfca; font-size:10px; text-align:right; }
+
+.ar-auto-note { display:block; margin:-6px 2px 2px; color:#6f8c9d; font-size:9px; line-height:1.45; }
+.ar-event-timeline { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:12px 0; }
+.ar-event-timeline > div { padding:10px; border-radius:12px; border:1px solid rgba(0,237,247,.12); background:rgba(0,237,247,.04); }
+.ar-event-timeline span,.ar-event-timeline strong,.ar-event-timeline small { display:block; }
+.ar-event-timeline span { color:#78a2b6; font-size:8px; text-transform:uppercase; letter-spacing:.08em; }
+.ar-event-timeline strong { margin-top:4px; color:#edfcff; font-size:14px; }
+.ar-event-timeline small { margin-top:3px; color:#668598; font-size:8px; }
+
+@media (max-width: 900px) {
+  .lane-view-toolbar,.lane-precision-toolbar { align-items:stretch; }
+  .lane-view-tabs,.lane-edit-actions,.lane-snap-selector,.lane-navigation-selector { width:100%; overflow-x:auto; flex-wrap:nowrap; padding-bottom:2px; }
+  .lane-view-tabs button,.lane-snap-selector button,.lane-navigation-selector button { flex:0 0 auto; min-height:40px; }
+  .lane-edit-actions button { flex:1; min-height:40px; }
+  .physics-metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .physics-factor-row { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .pin-deck-zoom-heading { flex-direction:column; }
+  .pin-deck-zoom-heading > span { text-align:left; }
+  .ar-event-timeline { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+@media (max-width: 520px) {
+  .physics-factor-row,.perspective-phase-row,.pin-impact-tips { grid-template-columns:1fr; }
+  .lane-navigation-hint { max-width:calc(100% - 24px); white-space:normal; text-align:center; }
+  .pin-deck-zoom-card { padding:8px; }
+}

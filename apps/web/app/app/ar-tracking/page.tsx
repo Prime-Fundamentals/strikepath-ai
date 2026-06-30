@@ -6,9 +6,11 @@ import { useAuth } from "@/components/AuthProvider";
 import { apiFetch } from "@/lib/api";
 import {
   analyzeBallMotion,
+  autoDetectBowlingShot,
   deriveBoardFromCalibration,
   suggestLaneCalibration,
   type ARVisionPoint,
+  type DetectedShotEvent,
 } from "@/lib/arVision";
 import type { ARPoint, ARTrackingCapture, ARTrackingCaptureInput, Session } from "@/lib/types";
 import { handLabel, toDisplayBoard } from "@/lib/boards";
@@ -62,6 +64,7 @@ export default function ARTrackingPage() {
   const [calibration, setCalibration] = useState<ARPoint[]>([]);
   const [pathPoints, setPathPoints] = useState<ARPoint[]>([]);
   const [autoTrackPoints, setAutoTrackPoints] = useState<ARVisionPoint[]>([]);
+  const [detectedEvents, setDetectedEvents] = useState<DetectedShotEvent[]>([]);
   const [trackingConfidence, setTrackingConfidence] = useState<number | null>(null);
   const [estimatedSpeedMph, setEstimatedSpeedMph] = useState<number | null>(null);
   const [estimatedEntryAngleDeg, setEstimatedEntryAngleDeg] = useState<number | null>(null);
@@ -146,6 +149,7 @@ export default function ARTrackingPage() {
     setEstimatedEntryAngleDeg(null);
     setAnalysisProgress(0);
     setAnalysisStatus("");
+    setDetectedEvents([]);
     setTrackingMode("manual");
   }
 
@@ -411,6 +415,45 @@ export default function ARTrackingPage() {
     }
   }
 
+  async function runAutomaticDetection() {
+    if (!videoRef.current || !analysisCanvasRef.current || !mediaUrl) {
+      setError("Record or upload a video before running automatic shot detection.");
+      return;
+    }
+    setError("");
+    setMessage("");
+    setAnalyzing(true);
+    setAnalysisProgress(0);
+    setAnalysisStatus("Starting automatic detection…");
+    try {
+      const result = await autoDetectBowlingShot(
+        videoRef.current,
+        analysisCanvasRef.current,
+        (progress, status) => {
+          setAnalysisProgress(progress);
+          setAnalysisStatus(status);
+        },
+      );
+      setCalibration(result.calibration);
+      setCalibrationConfidence(result.calibrationConfidence);
+      setCalibrationExplanation(result.calibrationExplanation);
+      setAutoTrackPoints(result.tracking.trackPoints);
+      setDetectedEvents(result.tracking.events);
+      setPathPoints(result.tracking.keyPoints);
+      setTrackingMode("assisted");
+      setTrackingConfidence(result.combinedConfidence);
+      setEstimatedSpeedMph(result.tracking.estimatedSpeedMph);
+      setEstimatedEntryAngleDeg(result.tracking.estimatedEntryAngleDeg);
+      setStage("path");
+      setMessage(`Automatic shot detection completed at ${Math.round(result.combinedConfidence * 100)}% confidence. Review the lane corners and gold event points before saving.`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unable to automatically detect the shot.");
+      setAnalysisStatus("");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
   async function runAssistedTracking() {
     if (!videoRef.current || !analysisCanvasRef.current || !mediaUrl) {
       setError("Record or upload a video before running assisted tracking.");
@@ -436,6 +479,7 @@ export default function ARTrackingPage() {
         },
       );
       setAutoTrackPoints(result.trackPoints);
+      setDetectedEvents(result.events);
       setPathPoints(result.keyPoints);
       setTrackingMode("assisted");
       setTrackingConfidence(result.confidence);
@@ -650,7 +694,11 @@ export default function ARTrackingPage() {
           <section className="glass-panel ar-assist-card">
             <div className="panel-heading"><div><small>VISION ASSIST</small><h2>Local analysis tools</h2></div></div>
             <p>These tools run inside your browser. The video is not uploaded to the API during this beta.</p>
-            <button type="button" className="secondary-button wide" onClick={() => void suggestCorners()} disabled={analyzing || (!cameraActive && !mediaUrl)}>Suggest lane corners</button>
+            <button type="button" className="primary-button wide ar-auto-detect" onClick={() => void runAutomaticDetection()} disabled={analyzing || !mediaUrl}>
+              {analyzing ? "Detecting shot…" : "Automatic full-shot detection"}
+            </button>
+            <small className="ar-auto-note">One tap detects lane boundaries, release, arrows, breakpoint, pocket, speed, and entry angle.</small>
+            <button type="button" className="secondary-button wide" onClick={() => void suggestCorners()} disabled={analyzing || (!cameraActive && !mediaUrl)}>Suggest lane corners only</button>
             {calibrationConfidence !== null && (
               <div className="ar-confidence-box">
                 <span>Corner suggestion confidence</span><strong>{Math.round(calibrationConfidence * 100)}%</strong>
@@ -688,6 +736,17 @@ export default function ARTrackingPage() {
 
           <section className="glass-panel ar-board-results">
             <div className="panel-heading"><div><small>ESTIMATED RESULT</small><h2>Shot telemetry</h2></div></div>
+            {detectedEvents.length > 0 && (
+              <div className="ar-event-timeline">
+                {detectedEvents.map((event) => (
+                  <div key={event.label}>
+                    <span>{event.label}</span>
+                    <strong>{event.timeSec.toFixed(2)}s</strong>
+                    <small>{event.board === null ? "Board —" : `Board ${formatBoard(displayBoard(event.board))}`} • {Math.round(event.confidence * 100)}%</small>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="ar-result-grid">
               {pathLabels.map((label) => <div key={label}><small>{label}</small><strong>{formatBoard(displayBoard(derivedBoards[label.toLowerCase()]))}</strong></div>)}
               <div><small>Estimated speed</small><strong className="metric-value">{formatMetric(estimatedSpeedMph, "mph")}</strong></div>

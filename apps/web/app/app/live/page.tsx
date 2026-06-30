@@ -129,6 +129,7 @@ export default function LivePage() {
   const availablePins = useMemo(() => availablePinsFor(workflow, latest), [workflow, latest]);
   const handedness = user?.handedness || "right";
   const aiSetup = useMemo(() => buildAISuggestedSetup(latest, latest?.recommendation ?? null, handedness), [latest, handedness]);
+  const activeBall = useMemo(() => balls.find((ball) => ball.id === draft?.ball_id) ?? null, [balls, draft?.ball_id]);
 
   const load = useCallback(async () => {
     try {
@@ -379,6 +380,8 @@ export default function LivePage() {
             editMode={editMode}
             showAiSuggestion={showAiSuggestion}
             aiSetup={aiSetup}
+            activeBall={activeBall}
+            oilLengthFt={session.oil_length_ft}
           />
         </section>
 

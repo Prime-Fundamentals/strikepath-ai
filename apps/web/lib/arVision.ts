@@ -11,13 +11,30 @@ export interface CalibrationSuggestion {
   explanation: string;
 }
 
+export interface DetectedShotEvent {
+  label: "Release" | "Arrows" | "Breakpoint" | "Pocket";
+  timeSec: number;
+  distanceFt: number;
+  board: number | null;
+  confidence: number;
+}
+
 export interface AutoTrackResult {
   trackPoints: ARVisionPoint[];
   keyPoints: ARPoint[];
+  events: DetectedShotEvent[];
   confidence: number;
   estimatedSpeedMph: number | null;
   estimatedEntryAngleDeg: number | null;
   diagnostics: string[];
+}
+
+export interface AutomaticShotDetection {
+  calibration: ARPoint[];
+  calibrationConfidence: number;
+  calibrationExplanation: string;
+  tracking: AutoTrackResult;
+  combinedConfidence: number;
 }
 
 const ANALYSIS_WIDTH = 240;
@@ -468,10 +485,16 @@ export async function analyzeBallMotion(
 
   const keyTargets = [2, 15, 44, 59];
   const keyLabels = ["Laydown", "Target", "Breakpoint", "Pocket"];
-  const keyPoints = keyTargets.map((distance, index) => {
-    const point = closestPointByDistance(smoothed, calibration, distance);
-    return { x: point.x, y: point.y, label: keyLabels[index] } satisfies ARPoint;
-  });
+  const eventLabels: DetectedShotEvent["label"][] = ["Release", "Arrows", "Breakpoint", "Pocket"];
+  const keyMatches = keyTargets.map((distance) => closestPointByDistance(smoothed, calibration, distance));
+  const keyPoints = keyMatches.map((point, index) => ({ x: point.x, y: point.y, label: keyLabels[index] } satisfies ARPoint));
+  const events = keyMatches.map((point, index) => ({
+    label: eventLabels[index],
+    timeSec: Math.round(point.time_sec * 100) / 100,
+    distanceFt: keyTargets[index],
+    board: deriveBoardFromCalibration(point, calibration),
+    confidence: Math.round(clamp((point.score / 85) * confidence, 0.12, 0.96) * 100) / 100,
+  } satisfies DetectedShotEvent));
 
   const diagnostics = [
     `${smoothed.length} motion samples retained from ${frames} analyzed frames.`,
@@ -483,9 +506,33 @@ export async function analyzeBallMotion(
   return {
     trackPoints: smoothed,
     keyPoints,
+    events,
     confidence,
     estimatedSpeedMph: estimateSpeed(smoothed, calibration),
     estimatedEntryAngleDeg: estimateEntryAngle(smoothed, calibration),
     diagnostics,
+  };
+}
+
+
+export async function autoDetectBowlingShot(
+  video: HTMLVideoElement,
+  canvas: HTMLCanvasElement,
+  onProgress?: (progress: number, message: string) => void,
+): Promise<AutomaticShotDetection> {
+  onProgress?.(0.02, "Detecting lane boundaries…");
+  const calibration = await suggestLaneCalibration(video, canvas);
+  onProgress?.(0.14, "Lane found. Tracking the bowling ball…");
+  const tracking = await analyzeBallMotion(video, canvas, calibration.points, (progress, message) => {
+    onProgress?.(0.14 + progress * 0.84, message);
+  });
+  const combinedConfidence = Math.round((calibration.confidence * 0.34 + tracking.confidence * 0.66) * 100) / 100;
+  onProgress?.(1, "Automatic shot detection complete");
+  return {
+    calibration: calibration.points,
+    calibrationConfidence: calibration.confidence,
+    calibrationExplanation: calibration.explanation,
+    tracking,
+    combinedConfidence,
   };
 }
