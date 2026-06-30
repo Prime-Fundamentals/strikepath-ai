@@ -1,51 +1,59 @@
 "use client";
 
+const ALL_PINS = [1,2,3,4,5,6,7,8,9,10];
+
 const pinLayout = [
-  { pin: 7, row: 3, col: 0 },
-  { pin: 8, row: 3, col: 1 },
-  { pin: 9, row: 3, col: 2 },
-  { pin: 10, row: 3, col: 3 },
-  { pin: 4, row: 2, col: 0.5 },
-  { pin: 5, row: 2, col: 1.5 },
-  { pin: 6, row: 2, col: 2.5 },
-  { pin: 2, row: 1, col: 1 },
-  { pin: 3, row: 1, col: 2 },
-  { pin: 1, row: 0, col: 1.5 },
+  { pin: 1, row: 1, col: 4 },
+  { pin: 2, row: 2, col: 3 },
+  { pin: 3, row: 2, col: 5 },
+  { pin: 4, row: 3, col: 2 },
+  { pin: 5, row: 3, col: 4 },
+  { pin: 6, row: 3, col: 6 },
+  { pin: 7, row: 4, col: 1 },
+  { pin: 8, row: 4, col: 3 },
+  { pin: 9, row: 4, col: 5 },
+  { pin: 10, row: 4, col: 7 },
 ];
 
-function normalizeStanding(standingPins: number[]) {
-  return [...new Set(standingPins)].filter((pin) => pin >= 1 && pin <= 10).sort((a, b) => a - b);
+function normalizePins(pins: number[]) {
+  return [...new Set(pins)]
+    .filter((pin) => pin >= 1 && pin <= 10)
+    .sort((a, b) => a - b);
 }
 
 export function stringifyLeave(standingPins: number[]) {
-  const normalized = normalizeStanding(standingPins);
+  const normalized = normalizePins(standingPins);
   return normalized.length ? normalized.join("-") : null;
 }
 
 export function parseLeave(leaveCode: string | null, pinfall: number | null = null) {
   if (leaveCode) {
-    const pins = leaveCode.match(/10|[1-9]/g)?.map(Number) ?? [];
-    return normalizeStanding(pins);
+    return normalizePins(leaveCode.match(/10|[1-9]/g)?.map(Number) ?? []);
   }
+  if (pinfall === 0) return ALL_PINS;
   if (pinfall === 10) return [];
-  if (pinfall === 0) return [1,2,3,4,5,6,7,8,9,10];
   return [];
 }
 
 export function PinLeaveSelector({
   standingPins,
+  availablePins = ALL_PINS,
   onChange,
 }: {
   standingPins: number[];
+  availablePins?: number[];
   onChange: (pins: number[]) => void;
 }) {
-  const normalized = normalizeStanding(standingPins);
+  const available = normalizePins(availablePins);
+  const standing = normalizePins(standingPins).filter((pin) => available.includes(pin));
+  const knockedDown = available.length - standing.length;
 
   function togglePin(pin: number) {
-    const next = normalized.includes(pin)
-      ? normalized.filter((value) => value !== pin)
-      : [...normalized, pin];
-    onChange(normalizeStanding(next));
+    if (!available.includes(pin)) return;
+    const next = standing.includes(pin)
+      ? standing.filter((value) => value !== pin)
+      : [...standing, pin];
+    onChange(normalizePins(next));
   }
 
   return (
@@ -53,32 +61,40 @@ export function PinLeaveSelector({
       <div className="pin-selector-top">
         <div>
           <small>Pin leave diagram</small>
-          <strong>{normalized.length ? `Standing pins: ${normalized.join(", ")}` : "Strike / all pins cleared"}</strong>
+          <strong>
+            {available.length < 10 ? `${knockedDown} of ${available.length} spare pins converted` : `${knockedDown} pins down`}
+          </strong>
         </div>
         <div className="pin-selector-actions">
-          <button type="button" onClick={() => onChange([])}>Strike</button>
-          <button type="button" onClick={() => onChange([1,2,3,4,5,6,7,8,9,10])}>Reset rack</button>
+          <button type="button" onClick={() => onChange([])}>
+            {available.length < 10 ? "Converted" : "Strike"}
+          </button>
+          <button type="button" onClick={() => onChange(available)}>Reset standing</button>
         </div>
       </div>
-      <div className="pin-selector-grid" role="group" aria-label="Select standing pins">
+
+      <div className="pin-selector-grid" role="group" aria-label="Select pins still standing">
         {pinLayout.map(({ pin, row, col }) => {
-          const active = normalized.includes(pin);
+          const isAvailable = available.includes(pin);
+          const isStanding = standing.includes(pin);
           return (
             <button
               key={pin}
               type="button"
-              className={`pin-chip ${active ? "standing" : "down"}`}
-              style={{ gridRow: row + 1, gridColumn: col + 1 }}
+              className={`pin-chip ${isStanding ? "standing" : "down"} ${!isAvailable ? "unavailable" : ""}`}
+              style={{ gridRow: row, gridColumn: col }}
               onClick={() => togglePin(pin)}
-              aria-pressed={active}
-              title={active ? `Pin ${pin} is standing` : `Pin ${pin} is knocked down`}
+              aria-pressed={isStanding}
+              disabled={!isAvailable}
+              title={!isAvailable ? `Pin ${pin} was already down` : isStanding ? `Pin ${pin} is standing` : `Pin ${pin} is down`}
             >
               <span>{pin}</span>
             </button>
           );
         })}
       </div>
-      <p className="pin-selector-help">Tap the exact pins left standing after the shot. Pinfall updates automatically.</p>
+
+      <p className="pin-selector-help">Tap only the pins still standing after the shot. The shot pinfall is calculated automatically.</p>
     </div>
   );
 }

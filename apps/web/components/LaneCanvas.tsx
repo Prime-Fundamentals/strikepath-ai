@@ -4,16 +4,27 @@ import { useMemo, useRef, useState } from "react";
 import type { LaneState, Recommendation, Shot, ShotInput } from "@/lib/types";
 import { parseLeave } from "./PinLeaveSelector";
 
-const VIEW_WIDTH = 480;
-const VIEW_HEIGHT = 850;
-const LANE_LEFT = 58;
-const LANE_TOP = 96;
+type EditableField = "feet_board" | "laydown_board" | "target_board" | "breakpoint_board" | "pocket_board";
+type PlacementMode = EditableField | "path";
+type DragState =
+  | { type: "field"; field: EditableField; pointerId: number; moved: boolean }
+  | {
+      type: "path";
+      pointerId: number;
+      startX: number;
+      initial: Pick<ShotInput, EditableField>;
+      moved: boolean;
+    };
+
+const VIEW_WIDTH = 620;
+const VIEW_HEIGHT = 858;
+const LANE_LEFT = 128;
+const LANE_TOP = 92;
 const LANE_WIDTH = 364;
 const LANE_LENGTH = 648;
 const FOUL_LINE_Y = LANE_TOP + LANE_LENGTH;
 const BOARD_GAP = LANE_WIDTH / 38;
-
-type EditableField = "feet_board" | "laydown_board" | "target_board" | "breakpoint_board" | "pocket_board";
+const ALL_PINS = [1,2,3,4,5,6,7,8,9,10];
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -33,8 +44,12 @@ function yForDistance(distance: number) {
 
 function boardForSvgX(x: number, step: number) {
   const ratio = clamp((x - LANE_LEFT) / LANE_WIDTH, 0, 1);
-  const board = 39 - ratio * 38;
-  return clamp(roundTo(board, step), 1, 39);
+  return clamp(roundTo(39 - ratio * 38, step), 1, 39);
+}
+
+function clientXToSvgX(svg: SVGSVGElement, clientX: number) {
+  const rect = svg.getBoundingClientRect();
+  return ((clientX - rect.left) / rect.width) * VIEW_WIDTH;
 }
 
 function formatBoard(board: number) {
@@ -58,31 +73,22 @@ const pinPositions = {
   10: { x: 3, y: 54 },
 } as const;
 
-const fallenOffsets = {
-  1: { dx: -12, dy: 3, rotate: -72 },
-  2: { dx: -11, dy: 8, rotate: -64 },
-  3: { dx: 11, dy: 7, rotate: 62 },
-  4: { dx: -16, dy: 8, rotate: -78 },
-  5: { dx: 0, dy: 11, rotate: -90 },
-  6: { dx: 16, dy: 8, rotate: 78 },
-  7: { dx: -14, dy: 6, rotate: -72 },
-  8: { dx: -4, dy: 11, rotate: -95 },
-  9: { dx: 4, dy: 11, rotate: 95 },
-  10: { dx: 14, dy: 6, rotate: 72 },
-} as const;
-
-function Pin({ x, y, standing = true, pinNumber }: { x: number; y: number; standing?: boolean; pinNumber: number }) {
-  const fallen = fallenOffsets[pinNumber as keyof typeof fallenOffsets];
-  const transform = standing
-    ? `translate(${x} ${y})`
-    : `translate(${x + fallen.dx} ${y + fallen.dy}) rotate(${fallen.rotate})`;
+function Pin({ x, y, standing, impact }: { x: number; y: number; standing: boolean; impact: boolean }) {
   return (
-    <g transform={transform} opacity={standing ? 1 : 0.28}>
-      <ellipse cx="0" cy={standing ? 15 : 5} rx="7.6" ry="3.1" fill="rgba(0,0,0,.18)" />
+    <g transform={`translate(${x} ${y})`} opacity={standing ? 1 : 0.2}>
+      {impact && (
+        <animate
+          attributeName="opacity"
+          values={standing ? "0.25;1;0.85;1" : "1;0.55;0.2"}
+          dur="0.7s"
+          fill="freeze"
+        />
+      )}
+      <ellipse cx="0" cy="15" rx="7.6" ry="3.1" fill="rgba(0,0,0,.2)" />
       <path
         d="M 0 -12 C -4.8 -12 -7.2 -8.4 -6.1 -3.9 C -5.1 0 -5.2 2.9 -6.7 6.2 C -8.5 10.1 -5.2 15.2 0 15.2 C 5.2 15.2 8.5 10.1 6.7 6.2 C 5.2 2.9 5.1 0 6.1 -3.9 C 7.2 -8.4 4.8 -12 0 -12 Z"
-        fill={standing ? "#ffffff" : "#b0bcc6"}
-        stroke={standing ? "#b8d4e4" : "#8292a0"}
+        fill={standing ? "#ffffff" : "#8798a5"}
+        stroke={standing ? "#b8d4e4" : "#677886"}
         strokeWidth="1.2"
       />
       <rect x="-1.3" y="-17" width="2.6" height="6.3" rx="1.3" fill="#ef3b50" />
@@ -90,44 +96,43 @@ function Pin({ x, y, standing = true, pinNumber }: { x: number; y: number; stand
   );
 }
 
-function MarkerTag({
-  x,
-  y,
-  label,
+const markerLayout: Record<EditableField, { label: string; side: "left" | "right"; y: number; color: string; fill: string }> = {
+  feet_board: { label: "Feet", side: "left", y: FOUL_LINE_Y + 38, color: "#65ecff", fill: "#071827" },
+  laydown_board: { label: "Laydown", side: "right", y: FOUL_LINE_Y - 18, color: "#7fe8ff", fill: "#071827" },
+  target_board: { label: "Target", side: "left", y: yForDistance(15) - 10, color: "#00f5ff", fill: "#00dce8" },
+  breakpoint_board: { label: "Breakpoint", side: "right", y: yForDistance(44) - 10, color: "#ffc663", fill: "#ffc663" },
+  pocket_board: { label: "Pocket", side: "left", y: LANE_TOP + 74, color: "#8cf8ff", fill: "#ffffff" },
+};
+
+function Marker({
+  field,
   board,
-  fill,
-  lineColor,
-  dotStroke = "#ffffff",
-  offsetX = 16,
-  offsetY = -30,
-  anchor = "start",
-  draggable = false,
+  pointY,
+  active,
+  enabled,
   onPointerDown,
 }: {
-  x: number;
-  y: number;
-  label: string;
+  field: EditableField;
   board: number;
-  fill: string;
-  lineColor: string;
-  dotStroke?: string;
-  offsetX?: number;
-  offsetY?: number;
-  anchor?: "start" | "middle" | "end";
-  draggable?: boolean;
-  onPointerDown?: (e: React.PointerEvent<SVGGElement>) => void;
+  pointY: number;
+  active: boolean;
+  enabled: boolean;
+  onPointerDown: (event: React.PointerEvent<SVGGElement>) => void;
 }) {
-  const tagX = clamp(x + offsetX, 80, VIEW_WIDTH - 80);
-  const tagY = clamp(y + offsetY, 34, VIEW_HEIGHT - 50);
-  const text = `${label} • ${formatBoard(board)}`;
+  const layout = markerLayout[field];
+  const pointX = xForBoard(board);
+  const rectX = layout.side === "left" ? 12 : VIEW_WIDTH - 112;
+  const tagCenterX = layout.side === "left" ? rectX + 100 : rectX;
+  const tagTextX = layout.side === "left" ? rectX + 10 : rectX + 90;
+  const anchor = layout.side === "left" ? "start" : "end";
 
   return (
-    <g className={`lane-marker-group ${draggable ? "draggable" : ""}`} onPointerDown={onPointerDown}>
-      <circle className="pulse-marker" cx={x} cy={y} r="8.5" fill={fill} stroke={dotStroke} strokeWidth="2.4" />
-      <path d={`M ${x} ${y} L ${tagX} ${tagY + 10}`} fill="none" stroke={lineColor} strokeWidth="1.4" strokeDasharray="4 3" opacity="0.92" />
-      <rect x={anchor === "end" ? tagX - 116 : anchor === "middle" ? tagX - 58 : tagX} y={tagY - 1} width="116" height="22" rx="11" fill="rgba(5,18,29,.92)" stroke={lineColor} strokeWidth="1.1" />
-      <text x={tagX + (anchor === "end" ? -12 : anchor === "middle" ? 0 : 12)} y={tagY + 13} textAnchor={anchor} fill="#e8fbff" fontSize="10.5" fontWeight="800" letterSpacing=".02em">
-        {text}
+    <g className={`lane-marker ${enabled ? "interactive" : ""} ${active ? "active" : ""}`} onPointerDown={enabled ? onPointerDown : undefined}>
+      <path d={`M ${pointX} ${pointY} L ${tagCenterX} ${layout.y + 11}`} fill="none" stroke={layout.color} strokeWidth="1.2" strokeDasharray="4 4" opacity=".65" />
+      <circle cx={pointX} cy={pointY} r={active ? 9 : 8} fill={layout.fill} stroke={field === "pocket_board" ? "#00e9ff" : "#ffffff"} strokeWidth={active ? "3" : "2"} />
+      <rect x={rectX} y={layout.y} width="100" height="24" rx="12" fill="rgba(5,18,29,.96)" stroke={layout.color} strokeWidth={active ? "1.8" : "1"} />
+      <text x={tagTextX} y={layout.y + 16} textAnchor={anchor} fill="#e8fbff" fontSize="10.5" fontWeight="800">
+        {layout.label} {formatBoard(board)}
       </text>
     </g>
   );
@@ -136,13 +141,22 @@ function MarkerTag({
 function SuggestionGhost({ feetBoard, targetBoard, breakpointBoard, pocketBoard }: { feetBoard: number; targetBoard: number; breakpointBoard: number; pocketBoard: number }) {
   const path = pathForShot({ laydown_board: feetBoard, target_board: targetBoard, breakpoint_board: breakpointBoard, pocket_board: pocketBoard });
   return (
-    <g className="recommendation-ghost">
-      <path d={path} fill="none" stroke="#8cdfff" strokeWidth="2.5" strokeDasharray="8 8" opacity=".72" />
-      <circle cx={xForBoard(feetBoard)} cy={FOUL_LINE_Y + 2} r="6.5" fill="rgba(140,223,255,.2)" stroke="#8cdfff" strokeWidth="2" />
-      <circle cx={xForBoard(targetBoard)} cy={yForDistance(15)} r="6.5" fill="rgba(140,223,255,.2)" stroke="#8cdfff" strokeWidth="2" />
+    <g>
+      <path d={path} fill="none" stroke="#8cdfff" strokeWidth="2.25" strokeDasharray="8 8" opacity=".58" />
+      <circle cx={xForBoard(feetBoard)} cy={FOUL_LINE_Y + 2} r="6" fill="rgba(140,223,255,.12)" stroke="#8cdfff" strokeWidth="1.6" />
+      <circle cx={xForBoard(targetBoard)} cy={yForDistance(15)} r="6" fill="rgba(140,223,255,.12)" stroke="#8cdfff" strokeWidth="1.6" />
     </g>
   );
 }
+
+const placementOptions: Array<{ key: PlacementMode; label: string }> = [
+  { key: "path", label: "Whole path" },
+  { key: "feet_board", label: "Feet" },
+  { key: "laydown_board", label: "Laydown" },
+  { key: "target_board", label: "Target" },
+  { key: "breakpoint_board", label: "Breakpoint" },
+  { key: "pocket_board", label: "Pocket" },
+];
 
 export function LaneCanvas({
   shots,
@@ -150,23 +164,28 @@ export function LaneCanvas({
   editableShot,
   onEditShot,
   recommendation,
+  resultShot = null,
 }: {
   shots: Shot[];
   laneState: LaneState | null;
   editableShot?: ShotInput | null;
   onEditShot?: (patch: Partial<ShotInput>) => void;
   recommendation?: Recommendation | null;
+  resultShot?: Shot | null;
 }) {
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [dragging, setDragging] = useState<EditableField | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const suppressTapRef = useRef(false);
+  const [placementMode, setPlacementMode] = useState<PlacementMode>("path");
+  const [, forceRender] = useState(0);
 
   const latestRealShot = shots[shots.length - 1] ?? null;
-  const previewShot = editableShot ?? latestRealShot;
-  const previewPath = previewShot ? pathForShot(previewShot) : "";
+  const visualShot = resultShot ?? editableShot ?? latestRealShot;
+  const visualPath = visualShot ? pathForShot(visualShot) : "";
   const standingPins = useMemo(() => {
-    if (!previewShot) return [] as number[];
-    return parseLeave(previewShot.leave_code, previewShot.pinfall);
-  }, [previewShot]);
+    if (!visualShot) return ALL_PINS;
+    return parseLeave(visualShot.leave_code, visualShot.pinfall);
+  }, [visualShot]);
 
   const recommendationPreview = latestRealShot && recommendation
     ? {
@@ -177,161 +196,249 @@ export function LaneCanvas({
       }
     : null;
 
-  function updateFromPointer(event: React.PointerEvent<SVGSVGElement> | React.PointerEvent<SVGGElement>, field: EditableField) {
-    if (!svgRef.current || !onEditShot) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * VIEW_WIDTH;
-    const step = field === "pocket_board" ? 0.25 : 0.5;
-    onEditShot({ [field]: boardForSvgX(x, step) } as Partial<ShotInput>);
-  }
-
-  function startDrag(field: EditableField, event: React.PointerEvent<SVGGElement>) {
+  function applyWholePathShift(deltaBoards: number, initial: Pick<ShotInput, EditableField>) {
     if (!onEditShot) return;
-    event.preventDefault();
-    setDragging(field);
-    updateFromPointer(event, field);
+    const fields: EditableField[] = ["feet_board", "laydown_board", "target_board", "breakpoint_board", "pocket_board"];
+    const minDelta = Math.max(...fields.map((field) => 1 - initial[field]));
+    const maxDelta = Math.min(...fields.map((field) => 39 - initial[field]));
+    const safeDelta = clamp(roundTo(deltaBoards, 0.5), minDelta, maxDelta);
+    onEditShot({
+      feet_board: clamp(roundTo(initial.feet_board + safeDelta, 0.5), 1, 39),
+      laydown_board: clamp(roundTo(initial.laydown_board + safeDelta, 0.5), 1, 39),
+      target_board: clamp(roundTo(initial.target_board + safeDelta, 0.5), 1, 39),
+      breakpoint_board: clamp(roundTo(initial.breakpoint_board + safeDelta, 0.5), 1, 39),
+      pocket_board: clamp(roundTo(initial.pocket_board + safeDelta, 0.25), 1, 39),
+    });
   }
 
-  function stopDrag() {
-    setDragging(null);
+  function beginCapture(pointerId: number) {
+    if (!svgRef.current) return;
+    try {
+      svgRef.current.setPointerCapture(pointerId);
+    } catch {
+      // Pointer capture is not available in every embedded browser.
+    }
+  }
+
+  function startFieldDrag(field: EditableField, event: React.PointerEvent<SVGGElement>) {
+    if (!onEditShot || resultShot) return;
+    event.preventDefault();
+    event.stopPropagation();
+    beginCapture(event.pointerId);
+    suppressTapRef.current = true;
+    dragRef.current = { type: "field", field, pointerId: event.pointerId, moved: false };
+    forceRender((value) => value + 1);
+  }
+
+  function startPathDrag(event: React.PointerEvent<SVGPathElement>) {
+    if (!svgRef.current || !editableShot || !onEditShot || resultShot) return;
+    event.preventDefault();
+    event.stopPropagation();
+    beginCapture(event.pointerId);
+    suppressTapRef.current = true;
+    dragRef.current = {
+      type: "path",
+      pointerId: event.pointerId,
+      startX: clientXToSvgX(svgRef.current, event.clientX),
+      initial: {
+        feet_board: editableShot.feet_board,
+        laydown_board: editableShot.laydown_board,
+        target_board: editableShot.target_board,
+        breakpoint_board: editableShot.breakpoint_board,
+        pocket_board: editableShot.pocket_board,
+      },
+      moved: false,
+    };
+    forceRender((value) => value + 1);
+  }
+
+  function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
+    const drag = dragRef.current;
+    if (!svgRef.current || !drag || !onEditShot || drag.pointerId !== event.pointerId) return;
+    const svgX = clientXToSvgX(svgRef.current, event.clientX);
+    drag.moved = true;
+    if (drag.type === "field") {
+      const step = drag.field === "pocket_board" ? 0.25 : 0.5;
+      onEditShot({ [drag.field]: boardForSvgX(svgX, step) } as Partial<ShotInput>);
+      return;
+    }
+    const startBoard = boardForSvgX(drag.startX, 0.5);
+    const currentBoard = boardForSvgX(svgX, 0.5);
+    applyWholePathShift(currentBoard - startBoard, drag.initial);
+  }
+
+  function stopDrag(event: React.PointerEvent<SVGSVGElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    suppressTapRef.current = true;
+    try {
+      svgRef.current?.releasePointerCapture(event.pointerId);
+    } catch {
+      // No-op when capture was unavailable.
+    }
+    dragRef.current = null;
+    forceRender((value) => value + 1);
+  }
+
+  function handleLaneTap(event: React.MouseEvent<SVGSVGElement>) {
+    if (suppressTapRef.current) {
+      suppressTapRef.current = false;
+      return;
+    }
+    if (!svgRef.current || !onEditShot || !editableShot || resultShot) return;
+    const svgX = clientXToSvgX(svgRef.current, event.clientX);
+    if (placementMode === "path") {
+      const center = (editableShot.feet_board + editableShot.laydown_board + editableShot.target_board + editableShot.breakpoint_board + editableShot.pocket_board) / 5;
+      applyWholePathShift(boardForSvgX(svgX, 0.5) - center, {
+        feet_board: editableShot.feet_board,
+        laydown_board: editableShot.laydown_board,
+        target_board: editableShot.target_board,
+        breakpoint_board: editableShot.breakpoint_board,
+        pocket_board: editableShot.pocket_board,
+      });
+      return;
+    }
+    const step = placementMode === "pocket_board" ? 0.25 : 0.5;
+    onEditShot({ [placementMode]: boardForSvgX(svgX, step) } as Partial<ShotInput>);
   }
 
   const boardLabels = [39, 35, 30, 25, 20, 15, 10, 5, 1];
   const arrowBoards = [5, 10, 15, 20, 25, 30, 35];
   const dotBoards = [3, 8, 13, 18, 22, 27, 32, 37];
+  const drag = dragRef.current;
 
   return (
     <div className="lane-wrap">
+      {onEditShot && (
+        <div className="lane-interaction-toolbar" role="toolbar" aria-label="Lane marker placement mode">
+          {placementOptions.map((option) => (
+            <button key={option.key} type="button" className={placementMode === option.key ? "active" : ""} onClick={() => setPlacementMode(option.key)}>
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <svg
         ref={svgRef}
-        className="lane-svg"
+        className={`lane-svg ${onEditShot ? "interactive" : ""} ${drag ? "dragging" : ""}`}
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
         role="img"
-        aria-label="Bowling lane path visualization"
-        onPointerMove={(event) => {
-          if (!dragging) return;
-          updateFromPointer(event, dragging);
-        }}
+        aria-label="Interactive bowling lane path visualization"
+        onPointerMove={handlePointerMove}
         onPointerUp={stopDrag}
-        onPointerLeave={stopDrag}
+        onPointerCancel={stopDrag}
+        onClick={handleLaneTap}
       >
         <defs>
-          <linearGradient id="laneWood" x1="0" y1="0" x2="1" y2="0">
+          <linearGradient id="laneWoodStable" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stopColor="#a66c39" />
-            <stop offset="0.12" stopColor="#dcae74" />
-            <stop offset="0.22" stopColor="#b67d42" />
-            <stop offset="0.36" stopColor="#ebc38b" />
-            <stop offset="0.5" stopColor="#bd844a" />
-            <stop offset="0.64" stopColor="#ecc590" />
-            <stop offset="0.78" stopColor="#b67d42" />
-            <stop offset="1" stopColor="#d3a26a" />
+            <stop offset=".14" stopColor="#deb078" />
+            <stop offset=".29" stopColor="#bb8145" />
+            <stop offset=".46" stopColor="#edc690" />
+            <stop offset=".63" stopColor="#bd844a" />
+            <stop offset=".8" stopColor="#e5b97f" />
+            <stop offset="1" stopColor="#a96e3b" />
           </linearGradient>
-          <linearGradient id="oilWash" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#8ffcff" stopOpacity=".28" />
-            <stop offset=".58" stopColor="#00cbff" stopOpacity=".12" />
+          <linearGradient id="oilWashStable" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#8ffcff" stopOpacity=".22" />
+            <stop offset=".6" stopColor="#00cbff" stopOpacity=".09" />
             <stop offset="1" stopColor="#00cbff" stopOpacity="0" />
           </linearGradient>
-          <radialGradient id="pinDeckGlow" cx="50%" cy="0%" r="85%">
-            <stop offset="0" stopColor="rgba(255,255,255,.46)" />
-            <stop offset="1" stopColor="rgba(255,255,255,0)" />
-          </radialGradient>
-          <filter id="pathGlow">
-            <feGaussianBlur stdDeviation="4.5" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
+          <filter id="softGlowStable" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
         </defs>
 
-        <rect x="22" y="44" width="436" height="772" rx="22" fill="#050d17" stroke="#18324a" strokeWidth="2" />
-        <rect x="30" y={LANE_TOP} width="20" height={LANE_LENGTH} rx="10" fill="#152230" opacity=".85" />
-        <rect x={LANE_LEFT} y={LANE_TOP} width={LANE_WIDTH} height={LANE_LENGTH} rx="12" fill="url(#laneWood)" />
-        <rect x={LANE_LEFT} y={LANE_TOP + 14} width={LANE_WIDTH} height={Math.round(LANE_LENGTH * 0.7)} fill="url(#oilWash)" />
-        <rect x={LANE_LEFT + LANE_WIDTH} y={LANE_TOP} width="20" height={LANE_LENGTH} rx="10" fill="#152230" opacity=".85" />
+        <rect x="4" y="42" width="612" height="790" rx="22" fill="#050d17" stroke="#18324a" strokeWidth="2" />
+        <rect x={LANE_LEFT - 28} y={LANE_TOP} width="20" height={LANE_LENGTH} rx="10" fill="#152230" />
+        <rect x={LANE_LEFT} y={LANE_TOP} width={LANE_WIDTH} height={LANE_LENGTH} rx="10" fill="url(#laneWoodStable)" />
+        <rect x={LANE_LEFT} y={LANE_TOP + 12} width={LANE_WIDTH} height={Math.round(LANE_LENGTH * .7)} fill="url(#oilWashStable)" />
+        <rect x={LANE_LEFT + LANE_WIDTH + 8} y={LANE_TOP} width="20" height={LANE_LENGTH} rx="10" fill="#152230" />
 
         {Array.from({ length: 39 }).map((_, index) => {
           const x = LANE_LEFT + BOARD_GAP * index;
-          const isMajor = index % 5 === 0;
-          return <line key={index} x1={x} y1={LANE_TOP} x2={x} y2={FOUL_LINE_Y} stroke="#5f3b1c" strokeOpacity={isMajor ? ".34" : ".18"} strokeWidth={isMajor ? "1.15" : ".7"} />;
+          return <line key={index} x1={x} y1={LANE_TOP} x2={x} y2={FOUL_LINE_Y} stroke="#5f3b1c" strokeOpacity={index % 5 === 0 ? ".32" : ".14"} strokeWidth={index % 5 === 0 ? "1" : ".6"} />;
         })}
 
-        <rect x={LANE_LEFT} y={LANE_TOP + LANE_LENGTH - 8} width={LANE_WIDTH} height="8" fill="rgba(255,255,255,.58)" />
-        <rect x={LANE_LEFT} y={LANE_TOP - 5} width={LANE_WIDTH} height="26" rx="8" fill="rgba(255,255,255,.08)" />
-        <rect x={LANE_LEFT + 10} y={LANE_TOP - 2} width={LANE_WIDTH - 20} height="20" rx="10" fill="url(#pinDeckGlow)" opacity=".28" />
+        <rect x={LANE_LEFT} y={FOUL_LINE_Y - 8} width={LANE_WIDTH} height="8" fill="rgba(255,255,255,.62)" />
+        <line x1={LANE_LEFT} y1={yForDistance(15)} x2={LANE_LEFT + LANE_WIDTH} y2={yForDistance(15)} stroke="#0e6171" strokeOpacity=".34" strokeDasharray="6 6" />
+        <line x1={LANE_LEFT} y1={yForDistance(7)} x2={LANE_LEFT + LANE_WIDTH} y2={yForDistance(7)} stroke="#0b3141" strokeOpacity=".2" strokeDasharray="4 8" />
 
-        <line x1={LANE_LEFT} y1={yForDistance(15)} x2={LANE_LEFT + LANE_WIDTH} y2={yForDistance(15)} stroke="#0e6171" strokeOpacity=".32" strokeDasharray="6 6" />
-        <line x1={LANE_LEFT} y1={yForDistance(7)} x2={LANE_LEFT + LANE_WIDTH} y2={yForDistance(7)} stroke="#0b3141" strokeOpacity=".18" strokeDasharray="4 8" />
-
-        {dotBoards.map((board) => <circle key={`dot-${board}`} cx={xForBoard(board)} cy={yForDistance(7)} r="3" fill="rgba(255,255,255,.62)" />)}
-
+        {dotBoards.map((board) => <circle key={`dot-${board}`} cx={xForBoard(board)} cy={yForDistance(7)} r="2.8" fill="rgba(255,255,255,.6)" />)}
         {arrowBoards.map((board) => {
           const x = xForBoard(board);
           const y = yForDistance(15);
-          return <path key={`arrow-${board}`} d={`M ${x} ${y - 6} l 6 12 h -12 z`} fill="#344453" opacity=".85" />;
+          return <path key={`arrow-${board}`} d={`M ${x} ${y - 6} l 6 12 h -12 z`} fill="#344453" opacity=".84" />;
         })}
-
         {boardLabels.map((board) => (
           <g key={`board-${board}`}>
-            <text x={xForBoard(board)} y={FOUL_LINE_Y + 22} textAnchor="middle" fill="#7c99ab" fontSize="10" fontWeight="700">{board}</text>
-            <line x1={xForBoard(board)} y1={FOUL_LINE_Y + 2} x2={xForBoard(board)} y2={FOUL_LINE_Y + 10} stroke="#5f7787" strokeWidth="1" />
+            <text x={xForBoard(board)} y={FOUL_LINE_Y + 22} textAnchor="middle" fill="#718c9e" fontSize="10" fontWeight="700">{board}</text>
+            <line x1={xForBoard(board)} y1={FOUL_LINE_Y + 2} x2={xForBoard(board)} y2={FOUL_LINE_Y + 9} stroke="#5f7787" />
           </g>
         ))}
 
         {Object.entries(pinPositions).map(([pin, position]) => {
-          const pinNumber = Number(pin) as keyof typeof pinPositions;
-          const standing = standingPins.includes(pinNumber);
-          return <Pin key={pin} x={VIEW_WIDTH / 2 + position.x * 15} y={LANE_TOP + 14 + position.y} standing={standing} pinNumber={pinNumber} />;
+          const pinNumber = Number(pin);
+          return <Pin key={`${pin}-${resultShot?.id ?? "preview"}`} x={VIEW_WIDTH / 2 + position.x * 15} y={LANE_TOP + 14 + position.y} standing={standingPins.includes(pinNumber)} impact={!!resultShot} />;
         })}
 
-        {laneState?.paths.slice(-6, -1).map((item, idx) => {
+        {resultShot && <circle cx={xForBoard(resultShot.pocket_board)} cy={yForDistance(59)} r="8" fill="none" stroke="#ffffff" strokeWidth="2" opacity="0"><animate attributeName="r" values="8;34" dur=".55s" fill="freeze" /><animate attributeName="opacity" values=".8;0" dur=".55s" fill="freeze" /></circle>}
+
+        {laneState?.paths.slice(-5, -1).map((item, index) => {
           const d = item.samples.map((sample, sampleIndex) => `${sampleIndex === 0 ? "M" : "L"} ${xForBoard(sample.board)} ${yForDistance(sample.distance_ft)}`).join(" ");
-          return <path key={item.shot_id} d={d} fill="none" stroke="#45b9d4" strokeOpacity={0.12 + idx * 0.08} strokeWidth="2.5" strokeLinecap="round" />;
+          return <path key={item.shot_id} d={d} fill="none" stroke="#45b9d4" strokeOpacity={0.12 + index * .07} strokeWidth="2" strokeLinecap="round" />;
         })}
 
-        {recommendationPreview && <SuggestionGhost feetBoard={recommendationPreview.feetBoard} targetBoard={recommendationPreview.targetBoard} breakpointBoard={recommendationPreview.breakpointBoard} pocketBoard={recommendationPreview.pocketBoard} />}
+        {recommendationPreview && !resultShot && <SuggestionGhost feetBoard={recommendationPreview.feetBoard} targetBoard={recommendationPreview.targetBoard} breakpointBoard={recommendationPreview.breakpointBoard} pocketBoard={recommendationPreview.pocketBoard} />}
 
-        {previewPath && (
+        {visualPath && (
           <>
-            <path id="latestBallPath" d={previewPath} fill="none" stroke="rgba(0,0,0,0)" />
-            <path className="current-path-glow" d={previewPath} fill="none" stroke="#00f3ff" strokeOpacity=".22" strokeWidth="10" filter="url(#pathGlow)" strokeLinecap="round" />
-            <path className="current-path" d={previewPath} fill="none" stroke="#85ffff" strokeWidth="4.5" strokeLinecap="round" />
-            <g className="travel-ball">
-              <circle cx="0" cy="0" r="7.5" fill="#00eaff" stroke="#ffffff" strokeWidth="2" />
-              <circle cx="-1.8" cy="-2.3" r="1.1" fill="#03364a" />
-              <circle cx="1.4" cy="-1.2" r="1" fill="#03364a" />
-              <circle cx="0" cy="1.7" r="1" fill="#03364a" />
-              <animateMotion dur="2.4s" repeatCount="indefinite" rotate="auto"><mpath href="#latestBallPath" /></animateMotion>
-            </g>
+            <path id="stableBallPath" d={visualPath} fill="none" stroke="transparent" />
+            {onEditShot && !resultShot && <path className="path-drag-hitbox" d={visualPath} fill="none" stroke="transparent" strokeWidth="30" onPointerDown={startPathDrag} />}
+            <path d={visualPath} fill="none" stroke="#00f3ff" strokeOpacity=".2" strokeWidth="9" filter="url(#softGlowStable)" strokeLinecap="round" />
+            <path d={visualPath} fill="none" stroke="#8affff" strokeWidth="4" strokeLinecap="round" strokeDasharray={resultShot ? "700" : undefined} strokeDashoffset={resultShot ? "700" : undefined}>
+              {resultShot && <animate attributeName="stroke-dashoffset" from="700" to="0" dur=".78s" fill="freeze" />}
+            </path>
+            {!resultShot && <circle cx={xForBoard(visualShot!.laydown_board)} cy={yForDistance(2)} r="6.5" fill="#00eaff" stroke="#ffffff" strokeWidth="2" />}
+            {resultShot && (
+              <g>
+                <circle cx="0" cy="0" r="7" fill="#00eaff" stroke="#ffffff" strokeWidth="2" />
+                <animateMotion dur=".82s" fill="freeze" rotate="auto"><mpath href="#stableBallPath" /></animateMotion>
+              </g>
+            )}
           </>
         )}
 
-        {previewShot && (
+        {visualShot && !resultShot && (
           <>
-            <MarkerTag x={xForBoard(previewShot.feet_board)} y={FOUL_LINE_Y + 2} label="Feet" board={previewShot.feet_board} fill="#081827" lineColor="#65ecff" offsetX={previewShot.feet_board < 20 ? 18 : -126} offsetY={20} anchor={previewShot.feet_board < 20 ? "start" : "end"} draggable={!!onEditShot} onPointerDown={(e) => startDrag("feet_board", e)} />
-            <MarkerTag x={xForBoard(previewShot.laydown_board)} y={yForDistance(2)} label="Laydown" board={previewShot.laydown_board} fill="#081827" lineColor="#7fe8ff" offsetX={previewShot.laydown_board < 20 ? 18 : -126} offsetY={-28} anchor={previewShot.laydown_board < 20 ? "start" : "end"} draggable={!!onEditShot} onPointerDown={(e) => startDrag("laydown_board", e)} />
-            <MarkerTag x={xForBoard(previewShot.target_board)} y={yForDistance(15)} label="Target" board={previewShot.target_board} fill="#00f5ff" lineColor="#00f5ff" offsetX={previewShot.target_board < 20 ? 18 : -126} offsetY={-26} anchor={previewShot.target_board < 20 ? "start" : "end"} draggable={!!onEditShot} onPointerDown={(e) => startDrag("target_board", e)} />
-            <MarkerTag x={xForBoard(previewShot.breakpoint_board)} y={yForDistance(44)} label="Breakpoint" board={previewShot.breakpoint_board} fill="#ffc663" lineColor="#ffc663" dotStroke="#fff5de" offsetX={previewShot.breakpoint_board < 20 ? 18 : -126} offsetY={-24} anchor={previewShot.breakpoint_board < 20 ? "start" : "end"} draggable={!!onEditShot} onPointerDown={(e) => startDrag("breakpoint_board", e)} />
-            <MarkerTag x={xForBoard(previewShot.pocket_board)} y={yForDistance(59)} label="Pocket" board={previewShot.pocket_board} fill="#ffffff" lineColor="#8cf8ff" dotStroke="#00e9ff" offsetX={previewShot.pocket_board < 20 ? 18 : -126} offsetY={18} anchor={previewShot.pocket_board < 20 ? "start" : "end"} draggable={!!onEditShot} onPointerDown={(e) => startDrag("pocket_board", e)} />
+            <Marker field="feet_board" board={visualShot.feet_board} pointY={FOUL_LINE_Y + 2} active={placementMode === "feet_board"} enabled={!!onEditShot} onPointerDown={(event) => startFieldDrag("feet_board", event)} />
+            <Marker field="laydown_board" board={visualShot.laydown_board} pointY={yForDistance(2)} active={placementMode === "laydown_board"} enabled={!!onEditShot} onPointerDown={(event) => startFieldDrag("laydown_board", event)} />
+            <Marker field="target_board" board={visualShot.target_board} pointY={yForDistance(15)} active={placementMode === "target_board"} enabled={!!onEditShot} onPointerDown={(event) => startFieldDrag("target_board", event)} />
+            <Marker field="breakpoint_board" board={visualShot.breakpoint_board} pointY={yForDistance(44)} active={placementMode === "breakpoint_board"} enabled={!!onEditShot} onPointerDown={(event) => startFieldDrag("breakpoint_board", event)} />
+            <Marker field="pocket_board" board={visualShot.pocket_board} pointY={yForDistance(59)} active={placementMode === "pocket_board"} enabled={!!onEditShot} onPointerDown={(event) => startFieldDrag("pocket_board", event)} />
           </>
         )}
 
-        <text x={VIEW_WIDTH / 2} y="36" textAnchor="middle" fill="#8defff" fontSize="13" fontWeight="900" letterSpacing=".14em">REALISTIC LANE VIEW</text>
-        <text x={VIEW_WIDTH / 2} y={VIEW_HEIGHT - 66} textAnchor="middle" fill="#607c90" fontSize="10.5" letterSpacing=".08em">BOARD NUMBERS • RIGHT-TO-LEFT 1–39 • ARROWS AT 15 FT • ESTIMATED BALL TRACK</text>
-        {onEditShot && <text x={VIEW_WIDTH / 2} y={VIEW_HEIGHT - 48} textAnchor="middle" fill="#91d9e6" fontSize="11" fontWeight="700">Drag the Feet, Laydown, Target, Breakpoint, and Pocket tags directly on the lane.</text>}
+        <text x={VIEW_WIDTH / 2} y="30" textAnchor="middle" fill="#8defff" fontSize="13" fontWeight="900" letterSpacing=".14em">INTERACTIVE LANE VIEW</text>
+        <text x={VIEW_WIDTH / 2} y={VIEW_HEIGHT - 44} textAnchor="middle" fill="#607c90" fontSize="10" letterSpacing=".07em">BOARD NUMBERS 1–39 • ARROWS AT 15 FT • TAP OR DRAG TO EDIT</text>
       </svg>
 
       {recommendationPreview && recommendation && (
         <div className="lane-recommendation-panel">
           <small>Recommended next move</small>
-          <strong>
-            Feet {formatBoard(recommendationPreview.feetBoard)} ({recommendation.feet_delta >= 0 ? "+" : ""}{formatBoard(recommendation.feet_delta)}) • Target {formatBoard(recommendationPreview.targetBoard)} ({recommendation.target_delta >= 0 ? "+" : ""}{formatBoard(recommendation.target_delta)})
-          </strong>
+          <strong>Feet {formatBoard(recommendationPreview.feetBoard)} • Target {formatBoard(recommendationPreview.targetBoard)}</strong>
           <p>{recommendation.explanation}</p>
         </div>
       )}
 
-      <div className="lane-legend"><span><i className="cyan" />Target</span><span><i className="gold" />Breakpoint</span><span><i className="white" />Pocket</span><span><i className="dark" />Feet / Laydown</span><span><i className="ghost" />Recommended line</span></div>
+      <div className="lane-legend">
+        <span><i className="cyan" />Target</span>
+        <span><i className="gold" />Breakpoint</span>
+        <span><i className="white" />Pocket</span>
+        <span><i className="ghost" />Recommended line</span>
+      </div>
     </div>
   );
 }

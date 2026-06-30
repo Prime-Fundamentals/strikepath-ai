@@ -85,12 +85,16 @@ export function ShotForm({
   busy,
   onChange,
   onSubmit,
+  workflow,
+  availablePins,
 }: {
   balls: Ball[];
   form: ShotInput;
   busy: boolean;
   onChange: (patch: Partial<ShotInput>) => void;
   onSubmit: (payload: ShotInput) => Promise<void>;
+  workflow: "first" | "spare" | "second";
+  availablePins: number[];
 }) {
   const [advanced, setAdvanced] = useState(false);
 
@@ -119,7 +123,7 @@ export function ShotForm({
       </div>
 
       <div className="shot-form-tip">
-        Drag the markers directly on the lane, or fine-tune exact board numbers here. The pin diagram below will update pinfall and leave automatically.
+        <strong>{workflow === "first" ? "First-ball mode" : workflow === "spare" ? "Spare mode" : "Second-ball mode"}</strong> — Drag the markers directly on the lane, or fine-tune exact board numbers here. The pin diagram below will update pinfall and leave automatically.
       </div>
 
       <div className="form-grid compact">
@@ -142,7 +146,11 @@ export function ShotForm({
         <NumberInput label="Breakpoint" value={form.breakpoint_board} min={1} max={39} step={0.5} hint="Estimated hook point downlane." onChange={(v) => onChange({ breakpoint_board: v || 1 })} />
         <NumberInput label="Pocket board" value={form.pocket_board} min={1} max={39} step={0.25} hint="Desired entry line through the pin deck." onChange={(v) => onChange({ pocket_board: v || 1 })} />
         <NumberInput label="Ball speed" value={form.speed_mph} min={5} max={30} step={0.1} hint="MPH at release or lane monitor." allowEmpty onChange={(v) => onChange({ speed_mph: v })} />
-        <NumberInput label="Pinfall" value={form.pinfall} min={0} max={10} hint="Auto-updates from the pin leave selector." onChange={(v) => onChange({ pinfall: v ?? 0, leave_code: v === 10 ? null : form.leave_code })} />
+        <label className="field">
+          <span>Pinfall</span>
+          <input className="readonly-number" value={form.pinfall} readOnly aria-readonly="true" />
+          <small className="field-hint">Calculated from the pin leave selector.</small>
+        </label>
         <label className="field">
           <span>Delivery</span>
           <select value={form.delivery_quality} onChange={(e) => onChange({ delivery_quality: e.target.value })}>
@@ -159,7 +167,8 @@ export function ShotForm({
 
       <PinLeaveSelector
         standingPins={standingPins}
-        onChange={(pins) => onChange({ leave_code: stringifyLeave(pins), pinfall: 10 - pins.length })}
+        availablePins={availablePins}
+        onChange={(pins) => onChange({ leave_code: stringifyLeave(pins), pinfall: Math.max(0, availablePins.length - pins.length) })}
       />
 
       {advanced && (
@@ -178,7 +187,7 @@ export function ShotForm({
         </div>
       )}
       <button className="primary-button wide" type="submit" disabled={busy}>
-        {busy ? "Analyzing shot…" : "Log shot & calculate next move"}
+        {busy ? "Analyzing shot…" : workflow === "spare" ? "Log spare attempt" : workflow === "second" ? "Log second shot" : "Log shot & calculate next move"}
       </button>
     </form>
   );
