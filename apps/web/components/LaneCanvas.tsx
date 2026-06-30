@@ -17,14 +17,16 @@ type DragState =
     };
 
 const VIEW_WIDTH = 620;
-const VIEW_HEIGHT = 858;
+const VIEW_HEIGHT = 930;
 const LANE_LEFT = 128;
 const LANE_TOP = 92;
 const LANE_WIDTH = 364;
 const LANE_LENGTH = 648;
 const FOUL_LINE_Y = LANE_TOP + LANE_LENGTH;
 const BOARD_GAP = LANE_WIDTH / 38;
-const ALL_PINS = [1,2,3,4,5,6,7,8,9,10];
+const ALL_PINS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const RH_BOARD_LABELS = [39, 35, 30, 25, 20, 15, 10, 5, 1];
+const LH_BOARD_LABELS = [1, 5, 10, 15, 20, 25, 30, 35, 39];
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -60,20 +62,21 @@ function pathForShot(shotLike: Pick<ShotInput, "laydown_board" | "target_board" 
   return `M ${xForBoard(shotLike.laydown_board)} ${yForDistance(2)} C ${xForBoard(shotLike.target_board)} ${yForDistance(15)} ${xForBoard(shotLike.breakpoint_board)} ${yForDistance(44)} ${xForBoard(shotLike.pocket_board)} ${yForDistance(59)}`;
 }
 
+// Correct orientation: the head pin (1) is closest to the bowler / foul line.
 const pinPositions = {
-  1: { x: 0, y: 0 },
-  2: { x: -1, y: 18 },
-  3: { x: 1, y: 18 },
-  4: { x: -2, y: 36 },
-  5: { x: 0, y: 36 },
-  6: { x: 2, y: 36 },
-  7: { x: -3, y: 54 },
-  8: { x: -1, y: 54 },
-  9: { x: 1, y: 54 },
-  10: { x: 3, y: 54 },
+  7: { x: -3, y: 0 },
+  8: { x: -1, y: 0 },
+  9: { x: 1, y: 0 },
+  10: { x: 3, y: 0 },
+  4: { x: -2, y: 18 },
+  5: { x: 0, y: 18 },
+  6: { x: 2, y: 18 },
+  2: { x: -1, y: 36 },
+  3: { x: 1, y: 36 },
+  1: { x: 0, y: 54 },
 } as const;
 
-function Pin({ x, y, standing, impact }: { x: number; y: number; standing: boolean; impact: boolean }) {
+function Pin({ x, y, standing, impact, pinNumber }: { x: number; y: number; standing: boolean; impact: boolean; pinNumber: number }) {
   return (
     <g transform={`translate(${x} ${y})`} opacity={standing ? 1 : 0.2}>
       {impact && (
@@ -92,16 +95,19 @@ function Pin({ x, y, standing, impact }: { x: number; y: number; standing: boole
         strokeWidth="1.2"
       />
       <rect x="-1.3" y="-17" width="2.6" height="6.3" rx="1.3" fill="#ef3b50" />
+      <text x="0" y="5" textAnchor="middle" fill={standing ? "#0a1620" : "#536472"} fontSize="8" fontWeight="900">
+        {pinNumber}
+      </text>
     </g>
   );
 }
 
 const markerLayout: Record<EditableField, { label: string; side: "left" | "right"; y: number; color: string; fill: string }> = {
-  feet_board: { label: "Feet", side: "left", y: FOUL_LINE_Y + 38, color: "#65ecff", fill: "#071827" },
+  feet_board: { label: "Feet", side: "left", y: FOUL_LINE_Y + 58, color: "#65ecff", fill: "#071827" },
   laydown_board: { label: "Laydown", side: "right", y: FOUL_LINE_Y - 18, color: "#7fe8ff", fill: "#071827" },
   target_board: { label: "Target", side: "left", y: yForDistance(15) - 10, color: "#00f5ff", fill: "#00dce8" },
   breakpoint_board: { label: "Breakpoint", side: "right", y: yForDistance(44) - 10, color: "#ffc663", fill: "#ffc663" },
-  pocket_board: { label: "Pocket", side: "left", y: LANE_TOP + 74, color: "#8cf8ff", fill: "#ffffff" },
+  pocket_board: { label: "Pocket", side: "left", y: LANE_TOP + 96, color: "#8cf8ff", fill: "#ffffff" },
 };
 
 function Marker({
@@ -302,7 +308,6 @@ export function LaneCanvas({
     onEditShot({ [placementMode]: boardForSvgX(svgX, step) } as Partial<ShotInput>);
   }
 
-  const boardLabels = [39, 35, 30, 25, 20, 15, 10, 5, 1];
   const arrowBoards = [5, 10, 15, 20, 25, 30, 35];
   const dotBoards = [3, 8, 13, 18, 22, 27, 32, 37];
   const drag = dragRef.current;
@@ -351,10 +356,10 @@ export function LaneCanvas({
           </filter>
         </defs>
 
-        <rect x="4" y="42" width="612" height="790" rx="22" fill="#050d17" stroke="#18324a" strokeWidth="2" />
+        <rect x="4" y="42" width="612" height="862" rx="22" fill="#050d17" stroke="#18324a" strokeWidth="2" />
         <rect x={LANE_LEFT - 28} y={LANE_TOP} width="20" height={LANE_LENGTH} rx="10" fill="#152230" />
         <rect x={LANE_LEFT} y={LANE_TOP} width={LANE_WIDTH} height={LANE_LENGTH} rx="10" fill="url(#laneWoodStable)" />
-        <rect x={LANE_LEFT} y={LANE_TOP + 12} width={LANE_WIDTH} height={Math.round(LANE_LENGTH * .7)} fill="url(#oilWashStable)" />
+        <rect x={LANE_LEFT} y={LANE_TOP + 12} width={LANE_WIDTH} height={Math.round(LANE_LENGTH * 0.7)} fill="url(#oilWashStable)" />
         <rect x={LANE_LEFT + LANE_WIDTH + 8} y={LANE_TOP} width="20" height={LANE_LENGTH} rx="10" fill="#152230" />
 
         {Array.from({ length: 39 }).map((_, index) => {
@@ -372,23 +377,36 @@ export function LaneCanvas({
           const y = yForDistance(15);
           return <path key={`arrow-${board}`} d={`M ${x} ${y - 6} l 6 12 h -12 z`} fill="#344453" opacity=".84" />;
         })}
-        {boardLabels.map((board) => (
-          <g key={`board-${board}`}>
-            <text x={xForBoard(board)} y={FOUL_LINE_Y + 22} textAnchor="middle" fill="#718c9e" fontSize="10" fontWeight="700">{board}</text>
-            <line x1={xForBoard(board)} y1={FOUL_LINE_Y + 2} x2={xForBoard(board)} y2={FOUL_LINE_Y + 9} stroke="#5f7787" />
+
+        <text x={LANE_LEFT - 16} y={yForDistance(15) + 4} textAnchor="end" fill="#75d8ea" fontSize="10" fontWeight="700">ARROWS</text>
+        <text x={LANE_LEFT - 16} y={FOUL_LINE_Y + 4} textAnchor="end" fill="#9db2c0" fontSize="10" fontWeight="700">FOUL</text>
+        <text x={VIEW_WIDTH / 2} y={LANE_TOP - 10} textAnchor="middle" fill="#d8eef5" fontSize="11" fontWeight="800">PIN DECK</text>
+
+        {RH_BOARD_LABELS.map((board, index) => (
+          <g key={`rh-${board}`}>
+            <text x={xForBoard(board)} y={FOUL_LINE_Y + 24} textAnchor="middle" fill="#f4f7fa" fontSize="16" fontWeight="900">{board}</text>
+            <text x={xForBoard(board)} y={FOUL_LINE_Y + 40} textAnchor="middle" fill="#b6c6cf" fontSize="9" fontWeight="700">RH</text>
           </g>
         ))}
+        {LH_BOARD_LABELS.map((board, index) => (
+          <g key={`lh-${board}`}>
+            <text x={xForBoard(RH_BOARD_LABELS[index])} y={FOUL_LINE_Y + 60} textAnchor="middle" fill="#ff4d4d" fontSize="16" fontWeight="900">{board}</text>
+            <text x={xForBoard(RH_BOARD_LABELS[index])} y={FOUL_LINE_Y + 76} textAnchor="middle" fill="#ff9a9a" fontSize="9" fontWeight="700">LH</text>
+          </g>
+        ))}
+        <text x={LANE_LEFT - 18} y={FOUL_LINE_Y + 24} textAnchor="end" fill="#f4f7fa" fontSize="11" fontWeight="800">Right</text>
+        <text x={LANE_LEFT - 18} y={FOUL_LINE_Y + 60} textAnchor="end" fill="#ff6f6f" fontSize="11" fontWeight="800">Left</text>
 
         {Object.entries(pinPositions).map(([pin, position]) => {
           const pinNumber = Number(pin);
-          return <Pin key={`${pin}-${resultShot?.id ?? "preview"}`} x={VIEW_WIDTH / 2 + position.x * 15} y={LANE_TOP + 14 + position.y} standing={standingPins.includes(pinNumber)} impact={!!resultShot} />;
+          return <Pin key={`${pin}-${resultShot?.id ?? "preview"}`} x={VIEW_WIDTH / 2 + position.x * 15} y={LANE_TOP + 10 + position.y} standing={standingPins.includes(pinNumber)} impact={!!resultShot} pinNumber={pinNumber} />;
         })}
 
         {resultShot && <circle cx={xForBoard(resultShot.pocket_board)} cy={yForDistance(59)} r="8" fill="none" stroke="#ffffff" strokeWidth="2" opacity="0"><animate attributeName="r" values="8;34" dur=".55s" fill="freeze" /><animate attributeName="opacity" values=".8;0" dur=".55s" fill="freeze" /></circle>}
 
         {laneState?.paths.slice(-5, -1).map((item, index) => {
           const d = item.samples.map((sample, sampleIndex) => `${sampleIndex === 0 ? "M" : "L"} ${xForBoard(sample.board)} ${yForDistance(sample.distance_ft)}`).join(" ");
-          return <path key={item.shot_id} d={d} fill="none" stroke="#45b9d4" strokeOpacity={0.12 + index * .07} strokeWidth="2" strokeLinecap="round" />;
+          return <path key={item.shot_id} d={d} fill="none" stroke="#45b9d4" strokeOpacity={0.12 + index * 0.07} strokeWidth="2" strokeLinecap="round" />;
         })}
 
         {recommendationPreview && !resultShot && <SuggestionGhost feetBoard={recommendationPreview.feetBoard} targetBoard={recommendationPreview.targetBoard} breakpointBoard={recommendationPreview.breakpointBoard} pocketBoard={recommendationPreview.pocketBoard} />}
@@ -422,7 +440,7 @@ export function LaneCanvas({
         )}
 
         <text x={VIEW_WIDTH / 2} y="30" textAnchor="middle" fill="#8defff" fontSize="13" fontWeight="900" letterSpacing=".14em">INTERACTIVE LANE VIEW</text>
-        <text x={VIEW_WIDTH / 2} y={VIEW_HEIGHT - 44} textAnchor="middle" fill="#607c90" fontSize="10" letterSpacing=".07em">BOARD NUMBERS 1–39 • ARROWS AT 15 FT • TAP OR DRAG TO EDIT</text>
+        <text x={VIEW_WIDTH / 2} y={VIEW_HEIGHT - 26} textAnchor="middle" fill="#607c90" fontSize="10" letterSpacing=".07em">TOP ROW = RIGHT-HANDED BOARD NUMBERS • RED ROW = LEFT-HANDED BOARD NUMBERS</text>
       </svg>
 
       {recommendationPreview && recommendation && (
@@ -432,6 +450,13 @@ export function LaneCanvas({
           <p>{recommendation.explanation}</p>
         </div>
       )}
+
+      <div className="lane-recommendation-panel" style={{ marginTop: 12 }}>
+        <small>Board reading guide</small>
+        <p>
+          The white row shows <strong>right-handed board numbers</strong>. The red row shows the matching <strong>left-handed board numbers</strong>. Pins are now oriented correctly with the <strong>1 pin closest to the bowler</strong> and the 7-8-9-10 row at the back of the deck.
+        </p>
+      </div>
 
       <div className="lane-legend">
         <span><i className="cyan" />Target</span>
