@@ -883,3 +883,21 @@ td small { color:#526d7e; font-size:9px; margin-top:3px; }
 @media (max-width: 430px) {
   .ai-setup-grid { grid-template-columns:1fr; }
 }
+
+/* Precision lane editor v2 */
+.lane-svg.interactive {
+  touch-action: none;
+  overscroll-behavior: contain;
+  contain: layout paint;
+}
+.lane-svg.is-dragging,
+.lane-svg.is-dragging .path-drag-hitbox,
+.lane-svg.is-dragging .lane-marker.interactive {
+  cursor: grabbing;
+}
+.lane-svg .lane-pin-top {
+  pointer-events: none;
+}
+.lane-svg .path-drag-hitbox {
+  pointer-events: stroke;
+}
