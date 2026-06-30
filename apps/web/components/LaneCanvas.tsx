@@ -23,6 +23,9 @@ const BOARD_GAP = LANE_WIDTH / 38;
 const ALL_PINS = [1,2,3,4,5,6,7,8,9,10];
 const MAJOR_PHYSICAL_BOARDS = [39,35,30,25,20,15,10,5,1];
 const APPROACH_DOT_BOARDS = [35,30,25,20,15,10,5];
+const APPROACH_MAX_FT = 15;
+const NEAR_DOT_DEPTH_FT = 6;
+const BACK_DOT_DEPTH_FT = 12;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -48,6 +51,20 @@ function boardForSvgX(x: number, step: number) {
 function clientXToSvgX(svg: SVGSVGElement, clientX: number) {
   const rect = svg.getBoundingClientRect();
   return ((clientX - rect.left) / rect.width) * VIEW_WIDTH;
+}
+
+function clientYToSvgY(svg: SVGSVGElement, clientY: number) {
+  const rect = svg.getBoundingClientRect();
+  return ((clientY - rect.top) / rect.height) * VIEW_HEIGHT;
+}
+
+function yForFeetDepth(depthFt: number) {
+  return FOUL_LINE_Y + (clamp(depthFt, .5, APPROACH_MAX_FT) / APPROACH_MAX_FT) * (APPROACH_BOTTOM - FOUL_LINE_Y);
+}
+
+function feetDepthForSvgY(y: number) {
+  const ratio = clamp((y - FOUL_LINE_Y) / (APPROACH_BOTTOM - FOUL_LINE_Y), 0, 1);
+  return clamp(roundTo(ratio * APPROACH_MAX_FT, .5), .5, APPROACH_MAX_FT);
 }
 
 function pathForShot(shotLike: Pick<ShotInput, "laydown_board" | "target_board" | "breakpoint_board" | "pocket_board">) {
@@ -110,9 +127,11 @@ function Marker({ field, board, pointY, handedness, active, enabled, onPointerDo
   );
 }
 
-function SuggestionGhost({ feetBoard, targetBoard, breakpointBoard, pocketBoard }: { feetBoard: number; targetBoard: number; breakpointBoard: number; pocketBoard: number }) {
-  const path = pathForShot({ laydown_board: feetBoard, target_board: targetBoard, breakpoint_board: breakpointBoard, pocket_board: pocketBoard });
-  return <g><path d={path} fill="none" stroke="#8cdfff" strokeWidth="2.2" strokeDasharray="8 8" opacity=".56" /><circle cx={xForBoard(feetBoard)} cy={FOUL_LINE_Y + 108} r="6" fill="rgba(140,223,255,.12)" stroke="#8cdfff" strokeWidth="1.6" /><circle cx={xForBoard(targetBoard)} cy={yForDistance(15)} r="6" fill="rgba(140,223,255,.12)" stroke="#8cdfff" strokeWidth="1.6" /></g>;
+function SuggestionGhost({ feetBoard, feetDepthFt, laydownBoard, targetBoard, breakpointBoard, pocketBoard }: { feetBoard: number; feetDepthFt: number; laydownBoard: number; targetBoard: number; breakpointBoard: number; pocketBoard: number }) {
+  const path = pathForShot({ laydown_board: laydownBoard, target_board: targetBoard, breakpoint_board: breakpointBoard, pocket_board: pocketBoard });
+  const feetX = xForBoard(feetBoard);
+  const feetY = yForFeetDepth(feetDepthFt);
+  return <g className="approach-suggestion-ghost"><path d={`M ${feetX} ${feetY} L ${xForBoard(laydownBoard)} ${yForDistance(1.5)}`} fill="none" stroke="#b57cff" strokeWidth="2.3" strokeDasharray="6 6" opacity=".8"/><path d={path} fill="none" stroke="#8cdfff" strokeWidth="2.2" strokeDasharray="8 8" opacity=".56"/><circle cx={feetX} cy={feetY} r="8" fill="rgba(181,124,255,.16)" stroke="#c79cff" strokeWidth="2"/><circle cx={xForBoard(targetBoard)} cy={yForDistance(15)} r="6" fill="rgba(140,223,255,.12)" stroke="#8cdfff" strokeWidth="1.6"/><text x={feetX} y={feetY - 12} textAnchor="middle" fill="#e0c9ff" fontSize="9.5" fontWeight="900">AI {feetDepthFt.toFixed(1)} FT</text></g>;
 }
 
 const placementOptions: Array<{ key: PlacementMode; label: string }> = [
@@ -138,12 +157,21 @@ export function LaneCanvas({ shots, laneState, editableShot, onEditShot, recomme
   const visualShot = resultShot ?? editableShot ?? latestRealShot;
   const visualPath = visualShot ? pathForShot(visualShot) : "";
   const standingPins = useMemo(() => visualShot ? parseLeave(visualShot.leave_code, visualShot.pinfall) : ALL_PINS, [visualShot]);
-  const recommendationPreview = latestRealShot && recommendation ? {
-    feetBoard: clamp(latestRealShot.feet_board + recommendation.feet_delta, 1, 39),
-    targetBoard: clamp(latestRealShot.target_board + recommendation.target_delta, 1, 39),
-    breakpointBoard: latestRealShot.breakpoint_board,
-    pocketBoard: latestRealShot.pocket_board,
-  } : null;
+  const recommendationPreview = latestRealShot && recommendation ? (() => {
+    const mirror = (latestRealShot.handedness || "right") !== handedness;
+    const board = (value: number) => mirror ? 40 - value : value;
+    const sign = mirror ? -1 : 1;
+    const feetDelta = recommendation.feet_delta * sign;
+    const targetDelta = recommendation.target_delta * sign;
+    return {
+      feetBoard: clamp(board(latestRealShot.feet_board) + feetDelta, 1, 39),
+      feetDepthFt: clamp(recommendation.suggested_feet_depth_ft ?? latestRealShot.feet_depth_ft ?? 11.5, .5, 15),
+      laydownBoard: clamp(board(latestRealShot.laydown_board) + feetDelta, 1, 39),
+      targetBoard: clamp(board(latestRealShot.target_board) + targetDelta, 1, 39),
+      breakpointBoard: board(latestRealShot.breakpoint_board),
+      pocketBoard: board(latestRealShot.pocket_board),
+    };
+  })() : null;
 
   function applyWholePathShift(deltaBoards: number, initial: Pick<ShotInput, EditableField>) {
     if (!onEditShot) return;
@@ -183,9 +211,14 @@ export function LaneCanvas({ shots, laneState, editableShot, onEditShot, recomme
     const drag = dragRef.current;
     if (!svgRef.current || !drag || !onEditShot || drag.pointerId !== event.pointerId) return;
     const svgX = clientXToSvgX(svgRef.current, event.clientX);
+    const svgY = clientYToSvgY(svgRef.current, event.clientY);
     if (drag.type === "field") {
       const step = drag.field === "pocket_board" ? .25 : .5;
-      onEditShot({ [drag.field]: boardForSvgX(svgX, step) } as Partial<ShotInput>);
+      if (drag.field === "feet_board") {
+        onEditShot({ feet_board: boardForSvgX(svgX, step), feet_depth_ft: feetDepthForSvgY(svgY) });
+      } else {
+        onEditShot({ [drag.field]: boardForSvgX(svgX, step) } as Partial<ShotInput>);
+      }
     } else {
       applyWholePathShift(boardForSvgX(svgX, .5) - boardForSvgX(drag.startX, .5), drag.initial);
     }
@@ -203,12 +236,17 @@ export function LaneCanvas({ shots, laneState, editableShot, onEditShot, recomme
     if (suppressTapRef.current) { suppressTapRef.current = false; return; }
     if (!svgRef.current || !onEditShot || !editableShot || resultShot) return;
     const svgX = clientXToSvgX(svgRef.current, event.clientX);
+    const svgY = clientYToSvgY(svgRef.current, event.clientY);
     if (placementMode === "path") {
       const center = (editableShot.feet_board + editableShot.laydown_board + editableShot.target_board + editableShot.breakpoint_board + editableShot.pocket_board) / 5;
       applyWholePathShift(boardForSvgX(svgX, .5) - center, editableShot);
       return;
     }
-    onEditShot({ [placementMode]: boardForSvgX(svgX, placementMode === "pocket_board" ? .25 : .5) } as Partial<ShotInput>);
+    if (placementMode === "feet_board") {
+      onEditShot({ feet_board: boardForSvgX(svgX, .5), feet_depth_ft: feetDepthForSvgY(svgY) });
+    } else {
+      onEditShot({ [placementMode]: boardForSvgX(svgX, placementMode === "pocket_board" ? .25 : .5) } as Partial<ShotInput>);
+    }
   }
 
   const drag = dragRef.current;
@@ -249,26 +287,28 @@ export function LaneCanvas({ shots, laneState, editableShot, onEditShot, recomme
 
         {MAJOR_PHYSICAL_BOARDS.map((physical) => <g key={`board-${physical}`}><text x={xForBoard(physical)} y={FOUL_LINE_Y+25} textAnchor="middle" fill="#f6fbff" fontSize="16" fontWeight="900">{formatBoard(toDisplayBoard(physical, handedness))}</text><text x={xForBoard(physical)} y={FOUL_LINE_Y+40} textAnchor="middle" fill="#7e9aaa" fontSize="8" fontWeight="800">{handShort}</text></g>)}
 
-        {APPROACH_DOT_BOARDS.map((physical) => <g key={`approach-${physical}`}><circle cx={xForBoard(physical)} cy={FOUL_LINE_Y+68} r="4" fill="#2a1a10"/><circle cx={xForBoard(physical)} cy={FOUL_LINE_Y+122} r="4" fill="#2a1a10"/><text x={xForBoard(physical)} y={FOUL_LINE_Y+150} textAnchor="middle" fill="#f4fbff" fontSize="13" fontWeight="900">{formatBoard(toDisplayBoard(physical, handedness))}</text></g>)}
-        <text x={LANE_LEFT-14} y={FOUL_LINE_Y+72} textAnchor="end" fill="#8fa8b7" fontSize="9" fontWeight="700">NEAR DOTS</text>
-        <text x={LANE_LEFT-14} y={FOUL_LINE_Y+126} textAnchor="end" fill="#8fa8b7" fontSize="9" fontWeight="700">BACK DOTS</text>
-        <text x={VIEW_WIDTH/2} y={APPROACH_BOTTOM+20} textAnchor="middle" fill="#7c98a9" fontSize="10" fontWeight="800">APPROACH REFERENCE DOTS • VERIFY THE BACK ROW AT EACH CENTER</text>
+        {APPROACH_DOT_BOARDS.map((physical) => <g key={`approach-${physical}`}><circle cx={xForBoard(physical)} cy={yForFeetDepth(NEAR_DOT_DEPTH_FT)} r="4.2" fill="#29170c" stroke="#d7a873" strokeWidth=".7"/><circle cx={xForBoard(physical)} cy={yForFeetDepth(BACK_DOT_DEPTH_FT)} r="4.2" fill="#29170c" stroke="#d7a873" strokeWidth=".7"/><text x={xForBoard(physical)} y={APPROACH_BOTTOM-8} textAnchor="middle" fill="#f4fbff" fontSize="13" fontWeight="900">{formatBoard(toDisplayBoard(physical, handedness))}</text></g>)}
+        <line x1={LANE_LEFT} y1={yForFeetDepth(NEAR_DOT_DEPTH_FT)} x2={LANE_LEFT+LANE_WIDTH} y2={yForFeetDepth(NEAR_DOT_DEPTH_FT)} stroke="#6e4b2d" strokeOpacity=".28" strokeDasharray="3 7"/>
+        <line x1={LANE_LEFT} y1={yForFeetDepth(BACK_DOT_DEPTH_FT)} x2={LANE_LEFT+LANE_WIDTH} y2={yForFeetDepth(BACK_DOT_DEPTH_FT)} stroke="#6e4b2d" strokeOpacity=".28" strokeDasharray="3 7"/>
+        <text x={LANE_LEFT-14} y={yForFeetDepth(NEAR_DOT_DEPTH_FT)+4} textAnchor="end" fill="#8fa8b7" fontSize="9" fontWeight="700">6 FT DOTS</text>
+        <text x={LANE_LEFT-14} y={yForFeetDepth(BACK_DOT_DEPTH_FT)+4} textAnchor="end" fill="#8fa8b7" fontSize="9" fontWeight="700">12 FT DOTS</text>
+        <text x={VIEW_WIDTH/2} y={APPROACH_BOTTOM+20} textAnchor="middle" fill="#7c98a9" fontSize="10" fontWeight="800">APPROACH DEPTH 0–15 FT • FEET MARKER MOVES SIDE-TO-SIDE AND FORWARD/BACK</text>
 
         {Object.entries(pinPositions).map(([pin, position]) => { const pinNumber=Number(pin); return <Pin key={`${pin}-${resultShot?.id ?? "preview"}`} x={VIEW_WIDTH/2 + position.x*15} y={LANE_TOP+10+position.y} standing={standingPins.includes(pinNumber)} impact={!!resultShot} pinNumber={pinNumber}/>; })}
         {resultShot && <circle cx={xForBoard(resultShot.pocket_board)} cy={yForDistance(59)} r="8" fill="none" stroke="#fff" strokeWidth="2" opacity="0"><animate attributeName="r" values="8;34" dur=".55s" fill="freeze"/><animate attributeName="opacity" values=".8;0" dur=".55s" fill="freeze"/></circle>}
 
         {laneState?.paths.slice(-5,-1).map((item,index) => { const d=item.samples.map((sample,i)=>`${i===0?"M":"L"} ${xForBoard(sample.board)} ${yForDistance(sample.distance_ft)}`).join(" "); return <path key={item.shot_id} d={d} fill="none" stroke="#45b9d4" strokeOpacity={.12+index*.07} strokeWidth="2" strokeLinecap="round"/>; })}
-        {recommendationPreview && !resultShot && <SuggestionGhost feetBoard={recommendationPreview.feetBoard} targetBoard={recommendationPreview.targetBoard} breakpointBoard={recommendationPreview.breakpointBoard} pocketBoard={recommendationPreview.pocketBoard}/>} 
+        {recommendationPreview && !resultShot && <SuggestionGhost feetBoard={recommendationPreview.feetBoard} feetDepthFt={recommendationPreview.feetDepthFt} laydownBoard={recommendationPreview.laydownBoard} targetBoard={recommendationPreview.targetBoard} breakpointBoard={recommendationPreview.breakpointBoard} pocketBoard={recommendationPreview.pocketBoard}/>} 
 
         {visualPath && <><path id="readableBallPath" d={visualPath} fill="none" stroke="transparent"/>{onEditShot && !resultShot && <path className="path-drag-hitbox" d={visualPath} fill="none" stroke="transparent" strokeWidth="30" onPointerDown={startPathDrag}/>}<path d={visualPath} fill="none" stroke="#00f3ff" strokeOpacity=".2" strokeWidth="9" filter="url(#softGlowReadable)" strokeLinecap="round"/><path d={visualPath} fill="none" stroke="#8affff" strokeWidth="4" strokeLinecap="round" strokeDasharray={resultShot?"700":undefined} strokeDashoffset={resultShot?"700":undefined}>{resultShot && <animate attributeName="stroke-dashoffset" from="700" to="0" dur=".78s" fill="freeze"/>}</path>{!resultShot && <circle cx={xForBoard(visualShot!.laydown_board)} cy={yForDistance(1.5)} r="6.5" fill="#00eaff" stroke="#fff" strokeWidth="2"/>}{resultShot && <g><circle cx="0" cy="0" r="7" fill="#00eaff" stroke="#fff" strokeWidth="2"/><animateMotion dur=".82s" fill="freeze" rotate="auto"><mpath href="#readableBallPath"/></animateMotion></g>}</>}
 
-        {visualShot && !resultShot && <><Marker field="feet_board" board={visualShot.feet_board} pointY={FOUL_LINE_Y+122} handedness={handedness} active={placementMode==="feet_board"} enabled={!!onEditShot} onPointerDown={(e)=>startFieldDrag("feet_board",e)}/><Marker field="laydown_board" board={visualShot.laydown_board} pointY={yForDistance(1.5)} handedness={handedness} active={placementMode==="laydown_board"} enabled={!!onEditShot} onPointerDown={(e)=>startFieldDrag("laydown_board",e)}/><Marker field="target_board" board={visualShot.target_board} pointY={yForDistance(15)} handedness={handedness} active={placementMode==="target_board"} enabled={!!onEditShot} onPointerDown={(e)=>startFieldDrag("target_board",e)}/><Marker field="breakpoint_board" board={visualShot.breakpoint_board} pointY={yForDistance(44)} handedness={handedness} active={placementMode==="breakpoint_board"} enabled={!!onEditShot} onPointerDown={(e)=>startFieldDrag("breakpoint_board",e)}/><Marker field="pocket_board" board={visualShot.pocket_board} pointY={yForDistance(59)} handedness={handedness} active={placementMode==="pocket_board"} enabled={!!onEditShot} onPointerDown={(e)=>startFieldDrag("pocket_board",e)}/></>}
+        {visualShot && !resultShot && <><Marker field="feet_board" board={visualShot.feet_board} pointY={yForFeetDepth(visualShot.feet_depth_ft || 11.5)} handedness={handedness} active={placementMode==="feet_board"} enabled={!!onEditShot} onPointerDown={(e)=>startFieldDrag("feet_board",e)}/><Marker field="laydown_board" board={visualShot.laydown_board} pointY={yForDistance(1.5)} handedness={handedness} active={placementMode==="laydown_board"} enabled={!!onEditShot} onPointerDown={(e)=>startFieldDrag("laydown_board",e)}/><Marker field="target_board" board={visualShot.target_board} pointY={yForDistance(15)} handedness={handedness} active={placementMode==="target_board"} enabled={!!onEditShot} onPointerDown={(e)=>startFieldDrag("target_board",e)}/><Marker field="breakpoint_board" board={visualShot.breakpoint_board} pointY={yForDistance(44)} handedness={handedness} active={placementMode==="breakpoint_board"} enabled={!!onEditShot} onPointerDown={(e)=>startFieldDrag("breakpoint_board",e)}/><Marker field="pocket_board" board={visualShot.pocket_board} pointY={yForDistance(59)} handedness={handedness} active={placementMode==="pocket_board"} enabled={!!onEditShot} onPointerDown={(e)=>startFieldDrag("pocket_board",e)}/></>}
 
         <text x={VIEW_WIDTH/2} y="30" textAnchor="middle" fill="#8defff" fontSize="13" fontWeight="900" letterSpacing=".14em">{handLabel(handedness).toUpperCase()} INTERACTIVE LANE</text>
         <text x={VIEW_WIDTH/2} y={VIEW_HEIGHT-20} textAnchor="middle" fill="#607c90" fontSize="10" letterSpacing=".07em">NUMBERS, DOTS, TARGETS, AND PATH ALL USE YOUR PROFILE HANDEDNESS</text>
       </svg>
 
-      {recommendationPreview && recommendation && <div className="lane-recommendation-panel"><small>Recommended next move</small><strong>Feet {formatBoard(toDisplayBoard(recommendationPreview.feetBoard, handedness))} • Target {formatBoard(toDisplayBoard(recommendationPreview.targetBoard, handedness))}</strong><p>{recommendation.explanation}</p></div>}
+      {recommendationPreview && recommendation && <div className="lane-recommendation-panel"><small>Recommended next move</small><strong>Feet {formatBoard(toDisplayBoard(recommendationPreview.feetBoard, handedness))} at {recommendationPreview.feetDepthFt.toFixed(1)} ft • Target {formatBoard(toDisplayBoard(recommendationPreview.targetBoard, handedness))}</strong><p>{recommendation.explanation}</p><div className="approach-ai-copy"><b>{recommendation.approach_title}</b><span>{recommendation.approach_explanation}</span></div></div>}
       <div className="lane-legend"><span><i className="cyan"/>Target</span><span><i className="gold"/>Breakpoint</span><span><i className="white"/>Pocket</span><span><i className="ghost"/>Recommended line</span></div>
     </div>
   );

@@ -29,7 +29,7 @@ def create_shot(session_id: int, payload: ShotCreate, user: User = Depends(get_c
         if not ball:
             raise HTTPException(status_code=404, detail="Ball not found")
     sequence = (db.scalar(select(func.max(Shot.sequence_number)).where(Shot.session_id == session.id)) or 0) + 1
-    shot = Shot(session_id=session.id, sequence_number=sequence, **payload.model_dump())
+    shot = Shot(session_id=session.id, sequence_number=sequence, handedness=user.handedness, **payload.model_dump())
     db.add(shot)
     db.flush()
 

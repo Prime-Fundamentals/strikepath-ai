@@ -17,6 +17,12 @@ export function RecommendationCard({ recommendation }: { recommendation: Recomme
         <div><small>Confidence</small><strong>{confidence}%</strong></div>
       </div>
       <div className="confidence-track"><span style={{ width: `${confidence}%` }} /></div>
+      <div className="approach-rec-block">
+        <small>AI suggested approach</small>
+        <strong>{recommendation.approach_title}</strong>
+        <p>{recommendation.approach_explanation}</p>
+        <span>Start {recommendation.suggested_feet_depth_ft.toFixed(1)} ft behind the foul line</span>
+      </div>
     </div>
   );
 }

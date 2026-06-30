@@ -10,6 +10,7 @@ class Shot:
     feet_board: float = 25
     speed_mph: float | None = 16.5
     delivery_quality: str = "good"
+    feet_depth_ft: float = 11.5
 
 
 def test_right_hander_repeated_high_move_left():
@@ -29,3 +30,15 @@ def test_execution_miss_holds_line():
     result = recommend([Shot(19.0, delivery_quality="pulled")], "right")
     assert result.feet_delta == 0
     assert result.adjustment_type == "execution check"
+
+
+def test_slow_delivery_moves_approach_back():
+    result = recommend([Shot(17.5, speed_mph=16.5), Shot(17.5, speed_mph=16.4), Shot(17.5, speed_mph=15.2, delivery_quality="slow")], "right")
+    assert result.feet_depth_delta_ft > 0
+    assert result.suggested_feet_depth_ft == 12.0
+
+
+def test_fast_delivery_moves_approach_forward():
+    result = recommend([Shot(17.5, speed_mph=16.0), Shot(17.5, speed_mph=16.1), Shot(17.5, speed_mph=17.4, delivery_quality="fast")], "right")
+    assert result.feet_depth_delta_ft < 0
+    assert result.suggested_feet_depth_ft == 11.0

@@ -33,6 +33,10 @@ export interface Recommendation {
   id?: number;
   feet_delta: number;
   target_delta: number;
+  feet_depth_delta_ft: number;
+  suggested_feet_depth_ft: number;
+  approach_title: string;
+  approach_explanation: string;
   direction_label: string;
   adjustment_type: string;
   confidence: number;
@@ -47,7 +51,9 @@ export interface Shot {
   sequence_number: number;
   game_number: number;
   frame_number: number | null;
+  handedness: Handedness;
   feet_board: number;
+  feet_depth_ft: number;
   laydown_board: number;
   target_board: number;
   breakpoint_board: number;
@@ -123,6 +129,7 @@ export interface ShotInput {
   game_number: number;
   frame_number: number | null;
   feet_board: number;
+  feet_depth_ft: number;
   laydown_board: number;
   target_board: number;
   breakpoint_board: number;

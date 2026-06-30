@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getQueuedShots, queueShot, removeQueuedShot } from "@/lib/offline";
 import type { Ball, LaneState, SessionDetail, Shot, ShotInput } from "@/lib/types";
-import { formatBoard, handLabel, toDisplayBoard } from "@/lib/boards";
+import { formatBoard, handLabel, toDisplayBoard, toPhysicalBoard } from "@/lib/boards";
 import { LaneCanvas } from "@/components/LaneCanvas";
 import { ShotForm } from "@/components/ShotForm";
 import { RecommendationCard } from "@/components/RecommendationCard";
@@ -42,17 +42,19 @@ function createDraft(
   const defaultBall = balls.find((ball) => ball.is_primary) || balls[0] || null;
   const spareBall = pickSpareBall(balls);
   const availablePins = availablePinsFor(workflow, lastShot);
+  const physical = (displayBoard: number) => toPhysicalBoard(displayBoard, handedness);
 
   if (!lastShot) {
     return {
       ball_id: (workflow === "spare" ? spareBall : defaultBall)?.id ?? null,
       game_number: 1,
       frame_number: 1,
-      feet_board: handedness === "right" ? 25 : 15,
-      laydown_board: handedness === "right" ? 22 : 18,
-      target_board: handedness === "right" ? 12 : 28,
-      breakpoint_board: handedness === "right" ? 8 : 32,
-      pocket_board: handedness === "right" ? 17.5 : 22.5,
+      feet_board: physical(25),
+      feet_depth_ft: 11.5,
+      laydown_board: physical(22),
+      target_board: physical(12),
+      breakpoint_board: physical(8),
+      pocket_board: physical(17.5),
       speed_mph: workflow === "spare" ? 17.5 : 16.5,
       rev_rate: null,
       axis_rotation: null,
@@ -64,18 +66,27 @@ function createDraft(
     };
   }
 
+  const sourceHand = lastShot.handedness || "right";
+  const mirrorForCurrentHand = sourceHand !== handedness;
+  const sourceBoard = (board: number) => mirrorForCurrentHand ? 40 - board : board;
+  const recommendationSign = mirrorForCurrentHand ? -1 : 1;
   const applyRecommendation = workflow === "first";
+  const feetDelta = applyRecommendation ? (lastShot.recommendation?.feet_delta || 0) * recommendationSign : 0;
+  const targetDelta = applyRecommendation ? (lastShot.recommendation?.target_delta || 0) * recommendationSign : 0;
+  const depthDelta = applyRecommendation ? (lastShot.recommendation?.feet_depth_delta_ft || 0) : 0;
+
   return {
     ball_id: workflow === "spare"
       ? (spareBall?.id ?? lastShot.ball_id ?? defaultBall?.id ?? null)
       : (lastShot.ball_id ?? defaultBall?.id ?? null),
     game_number: lastShot.game_number,
     frame_number: workflow === "first" ? Math.min(12, (lastShot.frame_number || 0) + 1) : lastShot.frame_number,
-    feet_board: clamp(lastShot.feet_board + (applyRecommendation ? (lastShot.recommendation?.feet_delta || 0) : 0), 1, 39),
-    laydown_board: clamp(lastShot.laydown_board + (applyRecommendation ? (lastShot.recommendation?.feet_delta || 0) : 0), 1, 39),
-    target_board: clamp(lastShot.target_board + (applyRecommendation ? (lastShot.recommendation?.target_delta || 0) : 0), 1, 39),
-    breakpoint_board: lastShot.breakpoint_board,
-    pocket_board: handedness === "right" ? 17.5 : 22.5,
+    feet_board: clamp(sourceBoard(lastShot.feet_board) + feetDelta, 1, 39),
+    feet_depth_ft: clamp((lastShot.feet_depth_ft || 11.5) + depthDelta, 0.5, 15),
+    laydown_board: clamp(sourceBoard(lastShot.laydown_board) + feetDelta, 1, 39),
+    target_board: clamp(sourceBoard(lastShot.target_board) + targetDelta, 1, 39),
+    breakpoint_board: sourceBoard(lastShot.breakpoint_board),
+    pocket_board: physical(17.5),
     speed_mph: workflow === "spare" ? Math.max(lastShot.speed_mph || 16.5, 17) : (lastShot.speed_mph || 16.5),
     rev_rate: lastShot.rev_rate,
     axis_rotation: lastShot.axis_rotation,
@@ -105,6 +116,7 @@ export default function LivePage() {
   const [draft, setDraft] = useState<ShotInput | null>(null);
   const [resultShot, setResultShot] = useState<Shot | null>(null);
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastHandednessRef = useRef<"right" | "left" | null>(null);
   const [createForm, setCreateForm] = useState({
     center_name: "Practice Center",
     lane_number: "",
@@ -147,6 +159,15 @@ export default function LivePage() {
     if (!user || !session || draft) return;
     setDraft(createDraft(user.handedness, balls, latest, workflow));
   }, [user, session, balls, latest, workflow, draft]);
+
+  useEffect(() => {
+    if (!user || !session) return;
+    if (lastHandednessRef.current && lastHandednessRef.current !== user.handedness) {
+      setDraft(createDraft(user.handedness, balls, latest, workflow));
+      setMessage(`Lane setup mirrored for your ${handLabel(user.handedness).toLowerCase()} profile.`);
+    }
+    lastHandednessRef.current = user.handedness;
+  }, [user?.handedness, session?.id, balls, latest, workflow]);
 
   useEffect(() => () => {
     if (resultTimerRef.current) clearTimeout(resultTimerRef.current);

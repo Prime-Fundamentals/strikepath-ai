@@ -45,6 +45,21 @@ export const bowlingGuides: BowlingGuide[] = [
     tip: "Take one practice setup without throwing and verify your shoe edge against the displayed board number.",
   },
   {
+    id: "approach-depth",
+    category: "Lane basics",
+    title: "Track starting depth on the approach",
+    summary: "Record both the board under your sliding foot and how far behind the foul line you begin.",
+    level: "Beginner",
+    duration: "4 min",
+    steps: [
+      "Use the Feet marker for your lateral board position.",
+      "Drag the same marker forward or backward to record starting distance behind the foul line.",
+      "Larger distance values mean you are starting farther from the foul line.",
+      "Use the AI approach suggestion only as a small starting adjustment, then verify it with one controlled shot.",
+    ],
+    tip: "Moving back can help create more natural speed; moving forward can help reduce excess speed, but tempo should remain smooth.",
+  },
+  {
     id: "arrows-targets",
     category: "Targeting",
     title: "Count arrows from your side",

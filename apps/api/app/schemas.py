@@ -90,6 +90,10 @@ class RecommendationRead(BaseModel):
     id: int | None = None
     feet_delta: float
     target_delta: float
+    feet_depth_delta_ft: float
+    suggested_feet_depth_ft: float
+    approach_title: str
+    approach_explanation: str
     direction_label: str
     adjustment_type: str
     confidence: float
@@ -102,6 +106,7 @@ class ShotCreate(BaseModel):
     game_number: int = Field(default=1, ge=1, le=20)
     frame_number: int | None = Field(default=None, ge=1, le=12)
     feet_board: float = Field(ge=1, le=39)
+    feet_depth_ft: float = Field(default=11.5, ge=0.5, le=15)
     laydown_board: float = Field(ge=1, le=39)
     target_board: float = Field(ge=1, le=39)
     breakpoint_board: float = Field(ge=1, le=39)
@@ -124,7 +129,9 @@ class ShotRead(BaseModel):
     sequence_number: int
     game_number: int
     frame_number: int | None
+    handedness: Handedness
     feet_board: float
+    feet_depth_ft: float
     laydown_board: float
     target_board: float
     breakpoint_board: float
