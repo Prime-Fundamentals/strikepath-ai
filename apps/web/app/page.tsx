@@ -1,33 +1,32 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icons";
-import { LandingLanePreview } from "@/components/LandingLanePreview";
 import styles from "./landing.module.css";
 
 const capabilities = [
   {
     icon: "live",
     title: "Live lane decisions",
-    text: "Log the shot, see the line, and get a clear next-shot setup without digging through technical screens.",
+    text: "Log the result and get a clear next-shot setup without digging through technical screens.",
   },
   {
     icon: "target",
     title: "Pin-specific spare planning",
-    text: "StrikePath reads the exact leave and builds a practical second-ball line for the pins that remain.",
+    text: "StrikePath reads the exact leave and builds a practical second-ball plan for the pins that remain.",
   },
   {
     icon: "camera",
     title: "Camera-assisted tracking",
-    text: "Record or upload a shot, calibrate the lane, and review detected release, target, breakpoint, and pocket events.",
+    text: "Record or upload a shot and review detected release, target, breakpoint, speed, and pocket events.",
   },
   {
     icon: "ball",
     title: "Equipment-aware analysis",
-    text: "Connect every result to the ball, surface, speed, and release information that shaped the reaction.",
+    text: "Connect each result to the ball, surface, speed, release, and pattern that shaped the reaction.",
   },
   {
     icon: "analytics",
     title: "Session intelligence",
-    text: "Track strike rate, pocket rate, target accuracy, adjustment results, and performance by game.",
+    text: "Track pocket rate, strike rate, target accuracy, adjustment results, and performance by game.",
   },
   {
     icon: "wifi",
@@ -37,10 +36,10 @@ const capabilities = [
 ];
 
 const steps = [
-  ["01", "Set the lane", "Choose the center, lane, pattern, hand, and ball."],
-  ["02", "Log the result", "Record the line, execution, speed, and pins left standing."],
-  ["03", "Review the setup", "See the recommended feet, target, speed, equipment, and spare plan."],
-  ["04", "Confirm the reaction", "The next shot updates the recommendation using your actual outcome."],
+  ["01", "Set the session", "Choose the center, lane condition, hand, and ball."],
+  ["02", "Log the result", "Record execution, speed, and the exact pins left standing."],
+  ["03", "Review the plan", "See the recommended feet, target, speed, ball, and spare plan."],
+  ["04", "Confirm the reaction", "The next delivery updates the recommendation from the real outcome."],
 ];
 
 export default function Home() {
@@ -54,7 +53,7 @@ export default function Home() {
         <nav className={styles.desktopNav} aria-label="Primary navigation">
           <a href="#platform">Platform</a>
           <a href="#workflow">Workflow</a>
-          <a href="#tracking">AR tracking</a>
+          <a href="#tracking">Tracking</a>
         </nav>
         <div className={styles.navActions}>
           <Link href="/login" className={styles.signIn}>Sign in</Link>
@@ -70,39 +69,59 @@ export default function Home() {
         <div className={styles.heroContent}>
           <div className={styles.heroCopy}>
             <span className={styles.kicker}><i /> Bowling intelligence for every frame</span>
-            <h1>See the reaction.<br /><span>Make the next shot.</span></h1>
+            <h1>Read the result.<br /><span>Own the next shot.</span></h1>
             <p>
-              StrikePath AI turns shot results, lane position, equipment, and pin leaves into a practical setup you can use before the next delivery.
+              StrikePath AI turns shot results, equipment, speed, lane position, and pin leaves into an understandable plan you can use before the next delivery.
             </p>
             <div className={styles.heroActions}>
               <Link href="/register" className={styles.primaryCta}>Create your bowling profile <Icon name="chevron" width={18} /></Link>
               <Link href="/login" className={styles.secondaryCta}>Open dashboard</Link>
             </div>
             <div className={styles.heroProof}>
-              <span><b>39-board</b> lane mapping</span>
+              <span><b>Explainable</b> recommendations</span>
               <span><b>Pin-specific</b> spare plans</span>
               <span><b>Phone-first</b> session logging</span>
             </div>
           </div>
 
-          <div className={styles.productPreview} aria-label="StrikePath AI live session preview">
-            <div className={styles.previewTop}>
-              <span><i /> LIVE SESSION</span>
-              <small>Lane 18 · House pattern</small>
-            </div>
-            <div className={styles.previewBody}>
-              <LandingLanePreview />
-              <div className={styles.previewRecommendation}>
-                <small>NEXT SHOT</small>
-                <h3>Move 2 boards inside, target 1 inside</h3>
-                <p>The last two trusted deliveries finished high. Shift the line into more oil and verify the reaction with one controlled shot.</p>
-                <div className={styles.previewMetrics}>
-                  <span><small>Feet</small><strong>Board 32</strong></span>
-                  <span><small>Target</small><strong>Board 15</strong></span>
-                  <span><small>Confidence</small><strong>84%</strong></span>
-                </div>
-                <div className={styles.confidence}><span /></div>
+          <div className={styles.coachConsole} aria-label="StrikePath AI recommendation preview">
+            <div className={styles.consoleHeader}>
+              <div>
+                <span className={styles.consoleLive}><i /> LIVE COACH</span>
+                <strong>Next-shot decision</strong>
               </div>
+              <small>Updated from shot #18</small>
+            </div>
+
+            <div className={styles.reactionCard}>
+              <div>
+                <small>LAST RESULT</small>
+                <h3>High pocket hit</h3>
+                <p>Two trusted deliveries finished high with stable speed and execution.</p>
+              </div>
+              <span className={styles.reactionBadge}>9 pins</span>
+            </div>
+
+            <div className={styles.decisionCard}>
+              <small>RECOMMENDED ADJUSTMENT</small>
+              <h2>Move 2 boards inside.<br />Move the target 1 inside.</h2>
+              <div className={styles.decisionMetrics}>
+                <span><small>Feet</small><strong>Board 32</strong></span>
+                <span><small>Target</small><strong>Board 15</strong></span>
+                <span><small>Speed</small><strong>16.7 mph</strong></span>
+                <span><small>Confidence</small><strong>84%</strong></span>
+              </div>
+            </div>
+
+            <div className={styles.reasonPanel}>
+              <span><i /> Breakpoint moved earlier</span>
+              <span><i /> Speed stayed within 0.2 mph</span>
+              <span><i /> Good delivery quality confirmed</span>
+            </div>
+
+            <div className={styles.consoleFooter}>
+              <span>Current ball: Hammer Black Widow 3.0</span>
+              <b>Verify with one controlled shot</b>
             </div>
           </div>
         </div>
@@ -151,25 +170,35 @@ export default function Home() {
 
       <section id="tracking" className={styles.trackingSection}>
         <div className={styles.trackingVisual}>
-          <div className={styles.phoneFrame}>
-            <div className={styles.phoneCamera}>
-              <div className={styles.cameraLane} />
-              <span className={styles.cornerOne} /><span className={styles.cornerTwo} /><span className={styles.cornerThree} /><span className={styles.cornerFour} />
-              <svg viewBox="0 0 260 440"><path d="M 190 410 C 180 320 118 220 148 86" fill="none" stroke="#7df8ff" strokeWidth="5" strokeLinecap="round" /></svg>
-              <div className={styles.cameraBadge}>Tracking confidence 82%</div>
+          <div className={styles.trackingConsole}>
+            <div className={styles.trackingHeader}>
+              <span><i /> CAMERA ANALYSIS</span>
+              <small>Local processing</small>
             </div>
+            <div className={styles.captureWindow}>
+              <span className={styles.captureReticle} />
+              <span className={styles.capturePulse} />
+              <div className={styles.captureMessage}><b>Shot detected</b><small>4 key events identified</small></div>
+            </div>
+            <div className={styles.eventGrid}>
+              <span><small>Release</small><strong>0.42 s</strong></span>
+              <span><small>Arrow</small><strong>Board 14.2</strong></span>
+              <span><small>Breakpoint</small><strong>Board 9.1</strong></span>
+              <span><small>Pocket</small><strong>17.6</strong></span>
+            </div>
+            <div className={styles.trackingConfidence}><span style={{ width: "82%" }} /></div>
           </div>
         </div>
         <div className={styles.trackingCopy}>
           <span>Camera-assisted tracking</span>
-          <h2>Bring the lane into the session.</h2>
-          <p>Record or upload a delivery, calibrate the lane, and review detected release, arrow crossing, breakpoint, pocket entry, speed, and angle.</p>
+          <h2>Bring the delivery into the session.</h2>
+          <p>Record or upload a shot and review detected release, arrow crossing, breakpoint, pocket entry, speed, and angle before saving.</p>
           <div className={styles.trackingList}>
             <span><i /> Local browser-side analysis</span>
             <span><i /> Editable detections before saving</span>
             <span><i /> Mobile and tablet capture workflow</span>
           </div>
-          <Link href="/register" className={styles.secondaryCta}>Explore AR tracking</Link>
+          <Link href="/register" className={styles.secondaryCta}>Explore tracking</Link>
         </div>
       </section>
 

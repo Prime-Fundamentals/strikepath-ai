@@ -110,6 +110,7 @@ function Marker({ field, board, y, handedness, onPointerDown }: {
   const labelY = field === "feet_board" ? y + 14 : y - 34;
   return (
     <g className={styles.marker} onPointerDown={onPointerDown}>
+      <circle cx={x} cy={y} r="22" fill="transparent" />
       <circle cx={x} cy={y} r="8.5" fill={field === "pocket_board" ? "#fff" : field === "breakpoint_board" ? "#ffc66a" : "#08202d"} stroke={info.color} strokeWidth="2.4" />
       <rect x={labelX} y={labelY} width={width} height="24" rx="12" fill="rgba(4,15,24,.94)" stroke={info.color} strokeWidth="1" />
       <text x={labelX + width / 2} y={labelY + 16} textAnchor="middle" fill="#effcff" fontSize="10.5" fontWeight="850">
@@ -183,11 +184,18 @@ export function OverheadLaneCanvas({
   const latest = shots[shots.length - 1] ?? null;
   const source = resultShot ?? editableShot ?? latest;
   const [preview, setPreview] = useState<LaneDraft | null>(source ? draftFromShot(source) : null);
+  const previewRef = useRef<LaneDraft | null>(source ? draftFromShot(source) : null);
   const id = useId().replace(/:/g, "_");
   const interactive = Boolean(editMode && editableShot && onEditShot && !resultShot);
 
+  function setPreviewDraft(next: LaneDraft | null) {
+    previewRef.current = next;
+    setPreview(next);
+  }
+
   useEffect(() => {
-    if (!dragRef.current) setPreview(source ? draftFromShot(source) : null);
+    if (dragRef.current) return;
+    setPreviewDraft(source ? draftFromShot(source) : null);
   }, [source?.feet_board, source?.feet_depth_ft, source?.laydown_board, source?.target_board, source?.breakpoint_board, source?.pocket_board]);
 
   useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
@@ -213,18 +221,19 @@ export function OverheadLaneCanvas({
     };
   }
 
-  function updatePreview(point: Point) {
-    const drag = dragRef.current;
-    if (!drag) return;
-    drag.moved = true;
-    if (drag.type === "path") {
-      setPreview(shiftWhole(drag.initial, point.x, drag.start.x));
-      return;
-    }
+  function draftForPoint(drag: DragState, point: Point) {
+    if (drag.type === "path") return shiftWhole(drag.initial, point.x, drag.start.x);
     const next = { ...drag.initial };
     next[drag.field] = boardForX(point.x);
     if (drag.field === "feet_board") next.feet_depth_ft = depthForY(point.y);
-    setPreview(next);
+    return next;
+  }
+
+  function updatePreview(point: Point) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (Math.hypot(point.x - drag.start.x, point.y - drag.start.y) > 0.75) drag.moved = true;
+    setPreviewDraft(draftForPoint(drag, point));
   }
 
   function schedulePreview(point: Point) {
@@ -242,7 +251,7 @@ export function OverheadLaneCanvas({
     event.preventDefault();
     event.stopPropagation();
     const start = pointerToSvg(svgRef.current, event.clientX, event.clientY);
-    const initial = preview ?? draftFromShot(editableShot);
+    const initial = previewRef.current ?? draftFromShot(editableShot);
     dragRef.current = type === "path"
       ? { type:"path", pointerId:event.pointerId, initial, start, moved:false }
       : { type:"field", field:field!, pointerId:event.pointerId, initial, start, moved:false };
@@ -257,25 +266,32 @@ export function OverheadLaneCanvas({
 
   function endDrag(event: React.PointerEvent<SVGSVGElement>) {
     const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag || drag.pointerId !== event.pointerId || !svgRef.current) return;
+
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
-      if (pendingRef.current) updatePreview(pendingRef.current);
-      pendingRef.current = null;
     }
-    const finalDraft = normalizeDraft(preview ?? drag.initial);
-    setPreview(finalDraft);
-    if (drag.moved && !sameDraft(finalDraft, drag.initial)) onEditShot?.(finalDraft);
-    try { svgRef.current?.releasePointerCapture(event.pointerId); } catch { /* no-op */ }
+
+    const releasePoint = pointerToSvg(svgRef.current, event.clientX, event.clientY);
+    const liveDraft = drag.moved ? draftForPoint(drag, releasePoint) : (previewRef.current ?? drag.initial);
+    const finalDraft = normalizeDraft(liveDraft);
+
+    pendingRef.current = null;
+    previewRef.current = finalDraft;
     dragRef.current = null;
+    setPreview(finalDraft);
+
+    try { svgRef.current.releasePointerCapture(event.pointerId); } catch { /* no-op */ }
+
+    if (drag.moved && !sameDraft(finalDraft, drag.initial)) onEditShot?.(finalDraft);
     window.setTimeout(() => { suppressClickRef.current = false; }, 0);
   }
 
   function handleTap(event: React.MouseEvent<SVGSVGElement>) {
     if (suppressClickRef.current || !interactive || !editableShot || !svgRef.current) return;
     const point = pointerToSvg(svgRef.current, event.clientX, event.clientY);
-    const next = { ...(preview ?? draftFromShot(editableShot)) };
+    const next = { ...(previewRef.current ?? draftFromShot(editableShot)) };
     if (point.y > FOUL_LINE_Y) {
       next.feet_board = boardForX(point.x);
       next.feet_depth_ft = depthForY(point.y);
@@ -290,7 +306,7 @@ export function OverheadLaneCanvas({
       next[closest.field] = boardForX(point.x);
     }
     const finalDraft = normalizeDraft(next);
-    setPreview(finalDraft);
+    setPreviewDraft(finalDraft);
     onEditShot?.(finalDraft);
   }
 
@@ -346,7 +362,7 @@ export function OverheadLaneCanvas({
 
         {path && <>
           <path id={`${id}_path`} d={path} fill="none" stroke="transparent" />
-          {interactive && <path className={styles.pathHitbox} d={path} fill="none" stroke="transparent" strokeWidth="30" onPointerDown={(event) => beginDrag("path",event)} />}
+          {interactive && <path className={styles.pathHitbox} d={path} fill="none" stroke="transparent" strokeWidth="44" onPointerDown={(event) => beginDrag("path",event)} />}
           <path d={path} fill="none" stroke="#74f8ff" strokeOpacity=".18" strokeWidth="11" strokeLinecap="round" filter={`url(#${id}_glow)`} pointerEvents="none" />
           <path d={path} fill="none" stroke="#8fffff" strokeWidth="4" strokeLinecap="round" pointerEvents="none" />
           {resultShot && <g><circle r="7" fill="#00eaff" stroke="#fff" strokeWidth="2" /><animateMotion dur=".72s" fill="freeze"><mpath href={`#${id}_path`} /></animateMotion></g>}

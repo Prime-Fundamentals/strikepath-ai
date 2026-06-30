@@ -160,7 +160,7 @@ export default function LivePage() {
     } finally {
       setQueued(getQueuedShots().length);
     }
-  }, [user]);
+  }, [user?.id, user?.handedness]);
 
   useEffect(() => { void load(); }, [load]);
 
